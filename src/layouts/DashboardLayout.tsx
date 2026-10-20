@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { ROUTES } from "../routes";
@@ -13,14 +13,41 @@ import {
   X,
   Menu,
   Settings,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import useSetting from "../hooks/useSetting";
 
 export default function DashboardLayout() {
   const { user, logout } = useAuth();
   const location = useLocation();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false); // Untuk menu HP
+
+  // State untuk Desktop/Tab: Default awal Terbuka (false),
+  // nanti di-useEffect diatur otomatis ciut jika ukuran layar masuk kategori Tab.
+  const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
+
   const { setting } = useSetting();
+
+  // useEffect untuk mendeteksi ukuran layar saat pertama kali buka
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      // Jika masuk kategori ukuran Tab (misalnya antara 768px sampai 1024px atau di bawah 1024px tapi bukan HP)
+      if (width >= 768 && width < 1150) {
+        setIsDesktopCollapsed(true); // Diciutkan khusus untuk layar Tab
+      } else if (width >= 1150) {
+        setIsDesktopCollapsed(false); // Terbuka otomatis untuk layar Desktop penuh
+      }
+    };
+
+    // Jalankan saat load pertama kali
+    handleResize();
+
+    // Opsional: sesuaikan jika ukuran layar diubah secara dinamis
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Menggunakan konstanta ROUTES yang terpusat agar konsisten
   const menu = [
@@ -29,22 +56,38 @@ export default function DashboardLayout() {
       path: ROUTES.ADMIN.DASHBOARD,
       icon: <LayoutDashboard size={20} />,
     },
-    { name: "Data Sawah", path: ROUTES.ADMIN.SAWAH, icon: <Sprout size={20} /> },
-    { name: "Data Penyewa", path: ROUTES.ADMIN.PENYEWA, icon: <Users size={20} /> },
+    {
+      name: "Data Sawah",
+      path: ROUTES.ADMIN.SAWAH,
+      icon: <Sprout size={20} />,
+    },
+    {
+      name: "Data Penyewa",
+      path: ROUTES.ADMIN.PENYEWA,
+      icon: <Users size={20} />,
+    },
     {
       name: "Transaksi Sewa",
       path: ROUTES.ADMIN.TRANSAKSI(),
       icon: <ClipboardList size={20} />,
     },
-    { name: "Laporan", path: ROUTES.ADMIN.LAPORAN, icon: <FileText size={20} /> },
-    { name: "Pengaturan", path: ROUTES.ADMIN.SETTING, icon: <Settings size={20} /> },
+    {
+      name: "Laporan",
+      path: ROUTES.ADMIN.LAPORAN,
+      icon: <FileText size={20} />,
+    },
+    {
+      name: "Pengaturan",
+      path: ROUTES.ADMIN.SETTING,
+      icon: <Settings size={20} />,
+    },
   ];
 
   // Menentukan Judul Tab secara dinamis berdasarkan URL aktif
   const getPageTitle = () => {
     const path = location.pathname;
     let currentMenuName = "Dashboard";
-    
+
     if (path.includes("sawah")) currentMenuName = "Data Sawah";
     else if (path.includes("penyewa")) currentMenuName = "Data Penyewa";
     else if (path.includes("transaksi")) currentMenuName = "Transaksi Sewa";
@@ -63,22 +106,25 @@ export default function DashboardLayout() {
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
 
-      {/* OVERLAY */}
-      {isSidebarOpen && (
+      {/* OVERLAY MOBILE */}
+      {isMobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm md:hidden"
-          onClick={() => setIsSidebarOpen(false)}
+          onClick={() => setIsMobileOpen(false)}
         />
       )}
 
       {/* SIDEBAR */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-slate-300 flex flex-col transition-transform duration-300 ease-in-out md:static md:translate-x-0 ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed inset-y-0 left-0 z-50 bg-slate-900 text-slate-300 flex flex-col transition-all duration-300 ease-in-out md:static ${
+          isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        } ${isDesktopCollapsed ? "md:w-20" : "md:w-64"} w-64`}
       >
-        <div className="p-6 flex justify-between items-center text-xl font-bold text-white border-b border-slate-800">
-          <div className="flex items-center gap-3 truncate">
+        {/* Header Sidebar */}
+        <div className="p-4 md:p-6 flex justify-between items-center text-xl font-bold text-white border-b border-slate-800">
+          <div
+            className={`flex items-center gap-3 truncate ${isDesktopCollapsed ? "md:hidden" : ""}`}
+          >
             <img
               src="/favicon.svg"
               alt="Logo Sawahku"
@@ -88,56 +134,84 @@ export default function DashboardLayout() {
               {setting?.nama_aplikasi || "SAWAHKU"}
             </span>
           </div>
+
+          {/* Logo kecil saat di-minimize */}
+          {isDesktopCollapsed && (
+            <div className="hidden md:flex justify-center w-full">
+              <img
+                src="/favicon.svg"
+                alt="Logo"
+                className="w-8 h-8 rounded-lg bg-slate-800 p-1 object-contain"
+              />
+            </div>
+          )}
+
           <button
-            onClick={() => setIsSidebarOpen(false)}
+            onClick={() => setIsMobileOpen(false)}
             className="md:hidden text-slate-400 hover:text-white cursor-pointer"
           >
             <X size={24} />
           </button>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        {/* Menu Navigasi */}
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {menu.map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                onClick={() => setIsSidebarOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                onClick={() => setIsMobileOpen(false)}
+                title={isDesktopCollapsed ? item.name : undefined}
+                className={`flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all ${
                   isActive
                     ? "bg-emerald-500/10 text-emerald-400 font-semibold"
                     : "text-slate-300 hover:bg-slate-800 hover:text-white"
                 }`}
               >
                 <span
-                  className={isActive ? "text-emerald-400" : "text-slate-400"}
+                  className={`${isActive ? "text-emerald-400" : "text-slate-400"} shrink-0`}
                 >
                   {item.icon}
                 </span>
-                {item.name}
+                <span
+                  className={`truncate ${isDesktopCollapsed ? "md:hidden" : ""}`}
+                >
+                  {item.name}
+                </span>
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-800">
-          <div className="flex items-center gap-3 mb-4 px-2">
-            <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold shrink-0">
+        {/* Footer Sidebar (User & Logout) */}
+        <div className="p-3 border-t border-slate-800">
+          <div
+            className={`flex items-center gap-3 mb-3 px-2 ${isDesktopCollapsed ? "md:justify-center" : ""}`}
+          >
+            <div className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold shrink-0">
               {user?.email?.charAt(0).toUpperCase()}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">
+            <div
+              className={`flex-1 min-w-0 ${isDesktopCollapsed ? "md:hidden" : ""}`}
+            >
+              <p className="text-xs font-medium text-white truncate">
                 {user?.email}
               </p>
             </div>
           </div>
           <button
             onClick={logout}
-            className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-red-600 text-white px-4 py-2.5 rounded-xl transition-colors text-sm font-medium cursor-pointer"
+            title={isDesktopCollapsed ? "Logout" : undefined}
+            className={`w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-red-600 text-white py-2.5 rounded-xl transition-colors text-xs font-medium cursor-pointer ${
+              isDesktopCollapsed ? "md:px-0" : "px-4"
+            }`}
           >
-            <LogOut size={16} />
-            Logout
+            <LogOut size={16} className="shrink-0" />
+            <span className={`${isDesktopCollapsed ? "md:hidden" : ""}`}>
+              Logout
+            </span>
           </button>
         </div>
       </aside>
@@ -146,14 +220,30 @@ export default function DashboardLayout() {
       <main className="flex-1 flex flex-col h-full overflow-hidden w-full">
         <header className="bg-white shadow-sm border-b border-slate-200 px-4 md:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
+            {/* Tombol Menu untuk Mobile */}
             <button
-              onClick={() => setIsSidebarOpen(true)}
+              onClick={() => setIsMobileOpen(true)}
               className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
             >
               <Menu size={24} />
             </button>
+
+            {/* Tombol Collapse / Minimize untuk Desktop/Tab */}
+            <button
+              onClick={() => setIsDesktopCollapsed(!isDesktopCollapsed)}
+              className="hidden md:flex p-2 text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
+              title={isDesktopCollapsed ? "Perluas Sidebar" : "Ciutkan Sidebar"}
+            >
+              {isDesktopCollapsed ? (
+                <PanelLeftOpen size={22} />
+              ) : (
+                <PanelLeftClose size={22} />
+              )}
+            </button>
+
             <h2 className="text-xl font-bold text-slate-800 capitalize">
-              {location.pathname.replace("/admin/", "").replace("/", " ") || "Dashboard"}
+              {location.pathname.replace("/admin/", "").replace("/", " ") ||
+                "Dashboard"}
             </h2>
           </div>
         </header>

@@ -30,7 +30,7 @@ interface Transaksi {
   status_bayar: string;
   nominal_dibayar: number;
   expand?: {
-    sawah?: { id: string; nama: string };
+    sawah?: { id: string; nama: string; luas_total: number };
     penyewa?: { id: string; nama: string; kontak?: string };
   };
 }
@@ -127,6 +127,7 @@ export default function Dashboard() {
     transaksiAktif: 0,
     potensiPendapatan: 0,
     uangMasukBulanIni: 0,
+    totalLuasLahan: 0,
   });
 
   const [activeTrx, setActiveTrx] = useState<Transaksi[]>([]);
@@ -140,7 +141,7 @@ export default function Dashboard() {
         const now = new Date();
         const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-        // 1. Data Sawah & Okupansi
+        // 1. Data Sawah & Okupansi (beserta total luas_total dari skema baru)
         let sawahList: any[] = [];
         try {
           sawahList = await pb.collection("sawah").getFullList();
@@ -151,6 +152,10 @@ export default function Dashboard() {
         const sawahTersewa = sawahList.filter(
           (s: any) => s.status === "disewa",
         ).length;
+        const totalLuas = sawahList.reduce(
+          (sum, s) => sum + (s.luas_total || 0),
+          0,
+        );
 
         // 2. Data Penyewa
         let penyewaCount = { totalItems: 0 };
@@ -227,6 +232,7 @@ export default function Dashboard() {
           transaksiAktif: trxAktif.length,
           potensiPendapatan: potensi,
           uangMasukBulanIni: cashInThisMonth,
+          totalLuasLahan: totalLuas,
         });
 
         setActiveTrx(trxAktif.slice(0, 5));
@@ -305,7 +311,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* TOTAL SAWAH */}
+        {/* TOTAL SAWAH & LUAS LAHAN */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex items-center gap-4">
           <div className="p-3.5 rounded-xl bg-emerald-500 text-white">
             <Sprout size={22} />
@@ -315,10 +321,10 @@ export default function Dashboard() {
               Total Aset Sawah
             </p>
             <h3 className="text-2xl font-bold text-slate-800">
-              {stats.sawahTotal}
+              {stats.sawahTotal} Petak
             </h3>
             <p className="text-xs text-emerald-600 font-medium mt-0.5">
-              {stats.sawahTotal - stats.sawahTersewa} Sawah Tersedia
+              Total Luas: {stats.totalLuasLahan.toLocaleString("id-ID")} m²
             </p>
           </div>
         </div>
@@ -428,7 +434,9 @@ export default function Dashboard() {
               <h3>Peringatan Tagihan & Jatuh Tempo ({overdueTrx.length})</h3>
             </div>
             <button
-              onClick={() => navigate(ROUTES.ADMIN.TRANSAKSI({ bayar: "menunggak" }))}
+              onClick={() =>
+                navigate(ROUTES.ADMIN.TRANSAKSI({ bayar: "menunggak" }))
+              }
               className="text-xs font-semibold text-amber-800 hover:underline flex items-center gap-1 cursor-pointer"
             >
               Kelola Semua <ArrowRight size={14} />
@@ -551,7 +559,9 @@ export default function Dashboard() {
                         <button
                           onClick={() =>
                             navigate(
-                              ROUTES.ADMIN.TRANSAKSI({ q: trx.expand?.sawah?.nama || "" }),
+                              ROUTES.ADMIN.TRANSAKSI({
+                                q: trx.expand?.sawah?.nama || "",
+                              }),
                             )
                           }
                           className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1 text-xs font-semibold"
