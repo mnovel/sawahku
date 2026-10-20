@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { ROUTES } from "../routes";
 import { useAuth } from "../contexts/AuthContext";
+import { pb } from "../lib/pb"; // <-- 1. IMPORT PB
 import {
   LayoutDashboard,
   Sprout,
@@ -21,35 +22,31 @@ import useSetting from "../hooks/useSetting";
 export default function DashboardLayout() {
   const { user, logout } = useAuth();
   const location = useLocation();
-  const [isMobileOpen, setIsMobileOpen] = useState(false); // Untuk menu HP
-
-  // State untuk Desktop/Tab: Default awal Terbuka (false),
-  // nanti di-useEffect diatur otomatis ciut jika ukuran layar masuk kategori Tab.
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
 
   const { setting } = useSetting();
 
-  // useEffect untuk mendeteksi ukuran layar saat pertama kali buka
+  // 2. BUAT VARIABEL LOGO URL (Fallback ke /favicon.svg jika kosong)
+  const logoUrl = setting?.logo
+    ? pb.files.getURL(setting as any, setting.logo)
+    : "/favicon.svg";
+
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
-      // Jika masuk kategori ukuran Tab (misalnya antara 768px sampai 1024px atau di bawah 1024px tapi bukan HP)
       if (width >= 768 && width < 1150) {
-        setIsDesktopCollapsed(true); // Diciutkan khusus untuk layar Tab
+        setIsDesktopCollapsed(true);
       } else if (width >= 1150) {
-        setIsDesktopCollapsed(false); // Terbuka otomatis untuk layar Desktop penuh
+        setIsDesktopCollapsed(false);
       }
     };
 
-    // Jalankan saat load pertama kali
     handleResize();
-
-    // Opsional: sesuaikan jika ukuran layar diubah secara dinamis
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Menggunakan konstanta ROUTES yang terpusat agar konsisten
   const menu = [
     {
       name: "Dashboard",
@@ -83,7 +80,6 @@ export default function DashboardLayout() {
     },
   ];
 
-  // Menentukan Judul Tab secara dinamis berdasarkan URL aktif
   const getPageTitle = () => {
     const path = location.pathname;
     let currentMenuName = "Dashboard";
@@ -100,7 +96,6 @@ export default function DashboardLayout() {
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">
-      {/* PENGATURAN META & TITLE ADMIN */}
       <Helmet>
         <title>{getPageTitle()}</title>
         <meta name="robots" content="noindex, nofollow" />
@@ -126,7 +121,7 @@ export default function DashboardLayout() {
             className={`flex items-center gap-3 truncate ${isDesktopCollapsed ? "md:hidden" : ""}`}
           >
             <img
-              src="/favicon.svg"
+              src={logoUrl} // <-- 3. GUNAKAN logoUrl DI SINI
               alt="Logo Sawahku"
               className="w-9 h-9 rounded-xl shadow-md shrink-0 bg-slate-800 p-1 object-contain"
             />
@@ -139,7 +134,7 @@ export default function DashboardLayout() {
           {isDesktopCollapsed && (
             <div className="hidden md:flex justify-center w-full">
               <img
-                src="/favicon.svg"
+                src={logoUrl} // <-- 4. GUNAKAN logoUrl DI SINI JUGA
                 alt="Logo"
                 className="w-8 h-8 rounded-lg bg-slate-800 p-1 object-contain"
               />

@@ -16,7 +16,12 @@ import {
   ChevronRight,
   FileText,
   ArrowUpDown,
+  MapPin,
+  Ruler,
   Filter,
+  Map,
+  ShieldCheck,
+  Banknote,
 } from "lucide-react";
 
 interface SertifikatType {
@@ -78,6 +83,7 @@ export default function Sawah() {
   ]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [mapPreview, setMapPreview] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -122,6 +128,12 @@ export default function Sawah() {
       { tipe_hak: "hak milik", nib: "", luas: "", url_maps: "", url_bhumi: "" },
     ]);
   }
+
+  const extractMapUrl = (str?: string) => {
+    if (!str) return "";
+    const match = str.match(/src="([^"]+)"/) || str.match(/src='([^']+)'/);
+    return match ? match[1] : str;
+  };
 
   function handleRemoveSertifikatField(index: number) {
     if (sertifikatList.length === 1) {
@@ -533,24 +545,21 @@ export default function Sawah() {
           </div>
 
           {/* TAMPILAN TABEL UNTUK DESKTOP / LAYAR BESAR */}
-          <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                      Nama Sawah & Legalitas Sertifikat
+                    <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest w-[40%]">
+                      Informasi Sawah
                     </th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest w-[20%]">
                       Luas & Lokasi
                     </th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                      Harga Sewa
+                    <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest w-[20%]">
+                      Harga & Status
                     </th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">
+                    <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest text-right w-[20%]">
                       Aksi
                     </th>
                   </tr>
@@ -561,141 +570,200 @@ export default function Sawah() {
                     return (
                       <tr
                         key={s.id}
-                        className="hover:bg-slate-50/80 transition-colors"
+                        className="hover:bg-slate-50/80 transition-colors group"
                       >
-                        <td className="px-6 py-4">
-                          <div className="font-bold text-slate-900 text-base">
-                            {s.nama}
+                        {/* KOLOM 1: INFORMASI SAWAH & SERTIFIKAT */}
+                        <td className="px-6 py-5 align-top">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0 mt-0.5">
+                              <Sprout className="text-emerald-600" size={20} />
+                            </div>
+                            <div>
+                              <div className="font-bold text-slate-900 text-base leading-tight group-hover:text-emerald-700 transition-colors">
+                                {s.nama}
+                              </div>
+                              {s.deskripsi ? (
+                                <p className="text-xs text-slate-500 mt-1 line-clamp-2">
+                                  {s.deskripsi}
+                                </p>
+                              ) : (
+                                <p className="text-xs text-slate-400 italic mt-1">
+                                  Tidak ada deskripsi.
+                                </p>
+                              )}
+
+                              {/* SERTIFIKAT (Lebih Informatif) */}
+                              <div className="mt-3 space-y-1.5">
+                                {certs.length === 0 ? (
+                                  <div className="inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md border border-amber-200">
+                                    <ShieldCheck size={12} /> Belum ada
+                                    sertifikat
+                                  </div>
+                                ) : (
+                                  certs.map((c, idx) => (
+                                    <div
+                                      key={c.id || idx}
+                                      className="flex flex-wrap items-center gap-2 text-xs bg-white p-1.5 rounded-lg border border-slate-200 shadow-sm"
+                                    >
+                                      <span className="uppercase font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded text-[9px] tracking-wider border border-emerald-200">
+                                        {c.tipe_hak}
+                                      </span>
+                                      <span className="font-semibold text-slate-700">
+                                        NIB: {c.nib}
+                                      </span>
+                                      <span className="text-slate-500 text-[11px] font-medium bg-slate-100 px-1.5 py-0.5 rounded">
+                                        {c.luas} m²
+                                      </span>
+
+                                      {/* Link Maps & Bhumi diperlihatkan langsung */}
+                                      <div className="flex items-center gap-1.5 ml-auto pl-2 border-l border-slate-200">
+                                        {c.url_maps && (
+                                          <a
+                                            href={c.url_maps}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-1 rounded transition-colors"
+                                            title="Lokasi Maps Sertifikat"
+                                          >
+                                            <Map size={14} />
+                                          </a>
+                                        )}
+                                        {c.url_bhumi && (
+                                          <a
+                                            href={c.url_bhumi}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-amber-500 hover:text-amber-700 hover:bg-amber-50 p-1 rounded transition-colors"
+                                            title="Cek Bhumi BPN"
+                                          >
+                                            <ExternalLink size={14} />
+                                          </a>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          {s.deskripsi && (
-                            <p className="text-xs text-slate-500 mt-0.5">
-                              {s.deskripsi}
-                            </p>
+                        </td>
+
+                        {/* KOLOM 2: LUAS & LOKASI */}
+                        <td className="px-6 py-5 align-top">
+                          <div className="flex items-center gap-2 text-slate-800 font-black text-sm">
+                            <div className="p-1.5 bg-slate-100 rounded-md">
+                              <Ruler size={14} className="text-slate-600" />
+                            </div>
+                            {s.luas_total.toLocaleString("id-ID")} m²
+                          </div>
+                          <div className="flex items-start gap-1.5 text-xs text-slate-600 mt-2 font-medium">
+                            <MapPin
+                              size={16}
+                              className="shrink-0 mt-0.5 text-emerald-500"
+                            />
+                            <span className="line-clamp-2">
+                              {s.lokasi || "Lokasi belum diatur"}
+                            </span>
+                          </div>
+
+                          {/* Tombol Pemicu Modal Peta */}
+                          {s.url_maps && (
+                            <button
+                              onClick={() =>
+                                setMapPreview(extractMapUrl(s.url_maps))
+                              }
+                              className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 mt-2 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-md transition-colors cursor-pointer"
+                            >
+                              <Map size={12} /> Lihat Peta
+                            </button>
                           )}
-                          <div className="mt-2 space-y-1.5">
-                            {certs.length === 0 ? (
-                              <span className="text-xs text-amber-600 italic">
-                                Belum ada sertifikat terdaftar
-                              </span>
-                            ) : (
-                              certs.map((c, idx) => (
-                                <div
-                                  key={c.id || idx}
-                                  className="flex flex-wrap items-center gap-2 text-xs bg-slate-50 p-2 rounded-lg border border-slate-200"
-                                >
-                                  <span className="uppercase font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                                    {c.tipe_hak}
-                                  </span>
-                                  <span className="font-semibold text-slate-700">
-                                    NIB: {c.nib}
-                                  </span>
-                                  <span className="text-slate-500">
-                                    ({c.luas} m²)
-                                  </span>
-                                  {c.url_maps && (
-                                    <a
-                                      href={c.url_maps}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="text-blue-600 hover:underline inline-flex items-center gap-0.5"
-                                    >
-                                      Maps <ExternalLink size={10} />
-                                    </a>
-                                  )}
-                                  {c.url_bhumi && (
-                                    <a
-                                      href={c.url_bhumi}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="text-amber-600 hover:underline inline-flex items-center gap-0.5"
-                                    >
-                                      Bhumi <ExternalLink size={10} />
-                                    </a>
-                                  )}
-                                </div>
-                              ))
-                            )}
+                        </td>
+
+                        {/* KOLOM 3: HARGA & STATUS */}
+                        <td className="px-6 py-5 align-top">
+                          <div className="flex items-center gap-1.5 text-emerald-600 font-black text-base">
+                            <Banknote size={16} />
+                            Rp {s.harga_sewa?.toLocaleString("id-ID")}
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5 ml-5">
+                            / Musim
+                          </div>
+
+                          <div className="mt-3">
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider border shadow-sm ${
+                                s.status === "tersedia"
+                                  ? "bg-emerald-500 text-white border-emerald-600"
+                                  : "bg-amber-500 text-white border-amber-600"
+                              }`}
+                            >
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full bg-white animate-pulse`}
+                              ></span>
+                              {s.status === "tersedia" ? "Tersedia" : "Disewa"}
+                            </span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 align-top">
-                          <div className="text-slate-800 font-bold">
-                            Total: {s.luas_total} m²
-                          </div>
-                          <div className="text-xs text-slate-500 mt-1">
-                            {s.lokasi || "-"}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 align-top font-bold text-emerald-600">
-                          Rp {s.harga_sewa?.toLocaleString("id-ID")}
-                        </td>
-                        <td className="px-6 py-4 align-top">
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-medium border ${
-                              s.status === "tersedia"
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                : "bg-amber-50 text-amber-700 border-amber-200"
-                            }`}
-                          >
-                            {s.status === "tersedia" ? "Tersedia" : "Disewa"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 align-top text-right">
-                          <div className="flex items-center justify-end gap-1">
+
+                        {/* KOLOM 4: AKSI */}
+                        <td className="px-6 py-5 align-top text-right">
+                          <div className="flex flex-col gap-2 items-end">
                             <button
                               onClick={() =>
                                 navigate(ROUTES.ADMIN.TRANSAKSI({ q: s.nama }))
                               }
-                              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
-                              title="Lihat Transaksi"
+                              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
                             >
-                              <ClipboardList size={18} />
+                              <ClipboardList size={14} /> Transaksi
                             </button>
-                            <button
-                              onClick={async () => {
-                                setForm({
-                                  nama: s.nama,
-                                  lokasi: s.lokasi,
-                                  harga_sewa: formatRupiah(s.harga_sewa),
-                                  url_maps: s.url_maps || "",
-                                  deskripsi: s.deskripsi || "",
-                                });
-                                if (certs.length > 0) {
-                                  setSertifikatList(
-                                    certs.map((c) => ({
-                                      id: c.id,
-                                      tipe_hak: c.tipe_hak,
-                                      nib: c.nib.toString(),
-                                      luas: c.luas.toString(),
-                                      url_maps: c.url_maps || "",
-                                      url_bhumi: c.url_bhumi || "",
-                                    })),
-                                  );
-                                } else {
-                                  setSertifikatList([
-                                    {
-                                      tipe_hak: "hak milik",
-                                      nib: "",
-                                      luas: "",
-                                      url_maps: "",
-                                      url_bhumi: "",
-                                    },
-                                  ]);
-                                }
-                                setEditId(s.id);
-                                setIsModalOpen(true);
-                              }}
-                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                              title="Edit"
-                            >
-                              <Pencil size={18} />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(s.id)}
-                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                              title="Hapus"
-                            >
-                              <Trash2 size={18} />
-                            </button>
+
+                            <div className="flex items-center gap-1.5 w-full">
+                              <button
+                                onClick={async () => {
+                                  setForm({
+                                    nama: s.nama,
+                                    lokasi: s.lokasi,
+                                    harga_sewa: formatRupiah(s.harga_sewa),
+                                    url_maps: s.url_maps || "",
+                                    deskripsi: s.deskripsi || "",
+                                  });
+                                  if (certs.length > 0) {
+                                    setSertifikatList(
+                                      certs.map((c) => ({
+                                        id: c.id,
+                                        tipe_hak: c.tipe_hak,
+                                        nib: c.nib.toString(),
+                                        luas: c.luas.toString(),
+                                        url_maps: c.url_maps || "",
+                                        url_bhumi: c.url_bhumi || "",
+                                      })),
+                                    );
+                                  } else {
+                                    setSertifikatList([
+                                      {
+                                        tipe_hak: "hak milik",
+                                        nib: "",
+                                        luas: "",
+                                        url_maps: "",
+                                        url_bhumi: "",
+                                      },
+                                    ]);
+                                  }
+                                  setEditId(s.id);
+                                  setIsModalOpen(true);
+                                }}
+                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-blue-600 text-slate-700 hover:text-white rounded-lg text-xs font-bold transition-all cursor-pointer"
+                              >
+                                <Pencil size={14} /> Edit
+                              </button>
+                              <button
+                                onClick={() => handleDelete(s.id)}
+                                className="flex items-center justify-center p-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white border border-red-100 rounded-lg transition-all cursor-pointer"
+                                title="Hapus"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -1036,6 +1104,37 @@ export default function Sawah() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PREVIEW PETA */}
+      {mapPreview && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col h-[80vh] border border-slate-200">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Map className="text-emerald-500" /> Peta Lokasi Sawah
+              </h3>
+              <button
+                onClick={() => setMapPreview(null)}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 bg-slate-100 relative">
+              <iframe
+                src={mapPreview}
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                title="Peta Lokasi Sawah"
+              ></iframe>
+            </div>
           </div>
         </div>
       )}

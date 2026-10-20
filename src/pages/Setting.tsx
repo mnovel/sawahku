@@ -10,6 +10,9 @@ import {
   MapPin,
   FileText,
   Info,
+  Image as ImageIcon,
+  Globe,
+  Search,
 } from "lucide-react";
 
 export default function Setting() {
@@ -18,13 +21,21 @@ export default function Setting() {
   const [saving, setSaving] = useState(false);
   const [settingId, setSettingId] = useState<string | null>(null);
 
+  // State untuk menangani file logo
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [currentLogoUrl, setCurrentLogoUrl] = useState<string | null>(null);
+
+  // State form hanya untuk text fields
   const [form, setForm] = useState({
     nama_aplikasi: "",
+    deskripsi_singkat: "",
     deskripsi: "",
+    keyword: "",
     nama_pengelola: "",
     alamat: "",
     nomor_wa: "",
     catatan_nota: "",
+    domain: "",
   });
 
   async function loadSetting() {
@@ -34,14 +45,23 @@ export default function Setting() {
       if (records.length > 0) {
         const data = records[0];
         setSettingId(data.id);
+
         setForm({
           nama_aplikasi: data.nama_aplikasi || "",
+          deskripsi_singkat: data.deskripsi_singkat || "",
           deskripsi: data.deskripsi || "",
+          keyword: data.keyword || "",
           nama_pengelola: data.nama_pengelola || "",
           alamat: data.alamat || "",
           nomor_wa: data.nomor_wa || "",
           catatan_nota: data.catatan_nota || "",
+          domain: data.domain || "",
         });
+
+        // Gunakan pb.files.getURL (huruf kapital) untuk menghindari warning
+        if (data.logo) {
+          setCurrentLogoUrl(pb.files.getURL(data, data.logo));
+        }
       }
     } catch (err) {
       console.error(err);
@@ -58,16 +78,33 @@ export default function Setting() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
+
     try {
+      // Wajib menggunakan FormData karena ada potensi upload file
+      const data = new FormData();
+
+      // Append semua text fields dari state form
+      Object.entries(form).forEach(([key, value]) => {
+        data.append(key, value);
+      });
+
+      // Append file logo jika user memilih file baru
+      if (logoFile) {
+        data.append("logo", logoFile);
+      }
+
       if (settingId) {
-        // Update data setting yang sudah ada
-        await pb.collection("setting").update(settingId, form);
+        await pb.collection("setting").update(settingId, data);
       } else {
-        // Buat baru jika belum ada record sama sekali
-        const newRecord = await pb.collection("setting").create(form);
+        const newRecord = await pb.collection("setting").create(data);
         setSettingId(newRecord.id);
       }
+
       toast("Pengaturan aplikasi berhasil diperbarui!", "success");
+
+      // Reset file input dan reload untuk mendapatkan URL logo baru
+      setLogoFile(null);
+      loadSetting();
     } catch (err) {
       console.error(err);
       toast("Gagal menyimpan pengaturan.", "error");
@@ -85,14 +122,14 @@ export default function Setting() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto pb-12">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
           <SettingsIcon className="text-emerald-500" /> Pengaturan Aplikasi
         </h1>
         <p className="text-slate-500 text-sm mt-1">
-          Kelola informasi identitas aplikasi, pengelola, dan format cetak nota
-          digital.
+          Kelola informasi identitas aplikasi, SEO, pengelola, dan format cetak
+          nota digital.
         </p>
       </div>
 
@@ -104,7 +141,7 @@ export default function Setting() {
           {/* INFORMASI APLIKASI */}
           <div>
             <h3 className="text-sm font-bold uppercase tracking-wider text-emerald-700 mb-4 flex items-center gap-2">
-              <Building size={16} /> Identitas Aplikasi & Usaha
+              <Building size={16} /> Identitas & SEO Aplikasi
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
@@ -125,17 +162,115 @@ export default function Setting() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Deskripsi / Slogan Singkat
+                  Domain Utama
+                </label>
+                <div className="relative">
+                  <Globe
+                    className="absolute left-3 top-3 text-slate-400"
+                    size={18}
+                  />
+                  <input
+                    type="url"
+                    placeholder="https://sawahku.com"
+                    value={form.domain}
+                    onChange={(e) =>
+                      setForm({ ...form, domain: e.target.value })
+                    }
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Slogan Singkat
                 </label>
                 <input
                   type="text"
-                  placeholder="Contoh: Sistem Informasi Pengelolaan Aset Pertanian"
+                  placeholder="Contoh: Portal Penyewaan Sawah Pribadi di Pasuruan"
+                  value={form.deskripsi_singkat}
+                  onChange={(e) =>
+                    setForm({ ...form, deskripsi_singkat: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Deskripsi Lengkap (SEO)
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Informasi dan pengelolaan sewa lahan sawah produktif..."
                   value={form.deskripsi}
                   onChange={(e) =>
                     setForm({ ...form, deskripsi: e.target.value })
                   }
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all resize-none"
                 />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Keyword (SEO)
+                </label>
+                <div className="relative">
+                  <Search
+                    className="absolute left-3 top-3 text-slate-400"
+                    size={18}
+                  />
+                  <input
+                    type="text"
+                    placeholder="sewa sawah pasuruan, sewa lahan pertanian, ..."
+                    value={form.keyword}
+                    onChange={(e) =>
+                      setForm({ ...form, keyword: e.target.value })
+                    }
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                  />
+                </div>
+                <p className="text-xs text-slate-400 mt-1">
+                  Pisahkan dengan koma (,)
+                </p>
+              </div>
+
+              {/* Upload Logo (PocketBase File) */}
+              <div className="md:col-span-2 flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border border-slate-200 rounded-xl bg-slate-50">
+                <div className="w-16 h-16 rounded-xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 p-1">
+                  {logoFile ? (
+                    // Preview file yang baru dipilih sebelum disave
+                    <img
+                      src={URL.createObjectURL(logoFile)}
+                      alt="Preview"
+                      className="w-full h-full object-contain"
+                    />
+                  ) : currentLogoUrl ? (
+                    // Tampilkan logo dari PocketBase
+                    <img
+                      src={currentLogoUrl}
+                      alt="Logo"
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <ImageIcon className="text-slate-300" size={24} />
+                  )}
+                </div>
+                <div className="flex-1 w-full">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Logo Aplikasi
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/png, image/jpeg, image/svg+xml, image/webp"
+                    onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
+                    className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">
+                    Format: JPG, PNG, SVG, atau WEBP. Biarkan kosong jika tidak
+                    ingin mengubah logo.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -241,7 +376,7 @@ export default function Setting() {
         </div>
 
         {/* TOMBOL SIMPAN */}
-        <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+        <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end sticky bottom-0">
           <button
             type="submit"
             disabled={saving}

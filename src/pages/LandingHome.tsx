@@ -20,6 +20,7 @@ import {
   X,
   Award,
   BadgeCheck,
+  ArrowUp,
 } from "lucide-react";
 
 interface SertifikatType {
@@ -59,14 +60,14 @@ export default function LandingHome() {
   const [list, setList] = useState<SawahType[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("semua"); // "semua" | "tersedia" | "disewa"
+  const [filterStatus, setFilterStatus] = useState<string>("semua");
 
-  // State untuk Modal Detail Sawah
   const [selectedSawah, setSelectedSawah] = useState<SawahType | null>(null);
   const [transaksiAktif, setTransaksiAktif] = useState<TransaksiType | null>(
     null,
   );
   const [loadingModal, setLoadingModal] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
     async function loadPublicSawah() {
@@ -85,7 +86,19 @@ export default function LandingHome() {
     loadPublicSawah();
   }, []);
 
+  useEffect(() => {
+    const onScroll = () => setShowScrollTop(window.scrollY > 400);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   async function handleOpenDetail(sawah: SawahType) {
+    window.scrollTo({ top: 0, behavior: "smooth" });
     setSelectedSawah(sawah);
     setLoadingModal(true);
     setTransaksiAktif(null);
@@ -103,6 +116,11 @@ export default function LandingHome() {
     } finally {
       setLoadingModal(false);
     }
+  }
+
+  function closeModal() {
+    setSelectedSawah(null);
+    setTransaksiAktif(null);
   }
 
   function formatTanggalIndo(dateString: string) {
@@ -173,14 +191,21 @@ export default function LandingHome() {
     "sewa sawah pasuruan, sewa lahan pertanian, jual beli sawah pasuruan, investasi tanah pertanian, sawahku";
 
   const currentDomain = setting?.domain || "https://sawahku.com";
-
   const pageUrl = currentDomain;
-  const pageOgImage = setting?.logo ? `${currentDomain}/${setting.logo}` : "";
+
+  // AMBIL LOGO DARI POCKETBASE
+  const logoUrl = setting?.logo
+    ? pb.files.getURL(setting as any, setting.logo)
+    : "/favicon.svg"; // Fallback jika belum ada logo di DB
+
+  // SEO OG IMAGE: Gunakan absolute URL dari PocketBase atau fallback ke logo lokal
+  const pageOgImage = setting?.logo
+    ? pb.files.getURL(setting as any, setting.logo)
+    : `${currentDomain}/favicon.svg`;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
       <Helmet>
-        {/* Standard SEO & Meta Tags */}
         <title>{pageTitle}</title>
         <meta name="description" content={pageDescription} />
         <meta name="keywords" content={pageKeywords} />
@@ -221,56 +246,63 @@ export default function LandingHome() {
             name: setting?.nama_aplikasi || "SawahKu",
             url: pageUrl,
             description: pageDescription,
+            image: pageOgImage,
           })}
         </script>
       </Helmet>
 
       {/* NAVBAR */}
       <header className="bg-white/90 backdrop-blur-md border-b border-slate-100 sticky top-0 z-40 transition-all shadow-xs">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 shadow-sm overflow-hidden p-2">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 h-16 sm:h-18 md:h-20 flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 shrink-0 rounded-xl sm:rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 shadow-sm overflow-hidden p-1.5 sm:p-2">
               <img
-                src="/favicon.svg"
+                src={logoUrl}
                 alt="Logo"
                 className="w-full h-full object-contain"
               />
             </div>
-            <div>
-              <span className="text-xl font-black tracking-tight text-slate-900 block leading-none">
-                {setting?.nama_aplikasi || "SAWAHKU"}
+            <div className="min-w-0">
+              <span className="text-base sm:text-lg md:text-xl font-black tracking-tight text-slate-900 block leading-none truncate">
+                {setting?.nama_aplikasi || "SawahKu"}
               </span>
-              <span className="text-[10px] font-bold tracking-widest uppercase text-emerald-600 mt-1 block">
-                Portal Manajemen Aset Lahan
+              <span className="hidden sm:block text-[9px] md:text-[10px] font-bold tracking-widest uppercase text-emerald-600 mt-0.5 md:mt-1 truncate max-w-[220px] md:max-w-none">
+                {setting?.deskripsi_singkat ||
+                  "Portal Penyewaan Sawah Pribadi di Pasuruan"}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {setting?.nomor_wa && (
               <a
                 href={`https://wa.me/${setting.nomor_wa.replace(/\D/g, "")}?text=Halo%2C%20saya%20tertarik%20dengan%20informasi%20lahan%20sawah.`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-xl text-xs transition-all border border-emerald-200"
+                className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 md:py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg sm:rounded-xl text-[10px] sm:text-xs transition-all border border-emerald-200 whitespace-nowrap"
               >
-                <PhoneCall size={14} /> Hubungi Pengelola
+                <PhoneCall size={14} className="shrink-0" />
+                <span>Hubungi Pengelola</span>
               </a>
             )}
 
             {user ? (
               <Link
                 to={ROUTES.ADMIN.DASHBOARD}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-all shadow-md shadow-emerald-600/20"
+                aria-label="Dashboard"
+                className="inline-flex items-center justify-center gap-2 w-9 h-9 sm:w-auto sm:h-auto px-0 sm:px-4 md:px-5 py-2 md:py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg sm:rounded-xl text-[11px] sm:text-xs transition-all shadow-md shadow-emerald-600/20 whitespace-nowrap"
               >
-                <LayoutDashboard size={15} /> Dashboard
+                <LayoutDashboard size={16} className="shrink-0" />
+                <span className="hidden sm:inline">Dashboard</span>
               </Link>
             ) : (
               <Link
                 to={ROUTES.LOGIN}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition-all shadow-md"
+                aria-label="Login"
+                className="inline-flex items-center justify-center gap-2 w-9 h-9 sm:w-auto sm:h-auto px-0 sm:px-4 py-2 md:py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg sm:rounded-xl text-[11px] sm:text-xs transition-all shadow-md whitespace-nowrap"
               >
-                <LogIn size={15} /> Login
+                <LogIn size={16} className="shrink-0" />
+                <span className="hidden sm:inline">Login</span>
               </Link>
             )}
           </div>
@@ -278,48 +310,47 @@ export default function LandingHome() {
       </header>
 
       {/* HERO SECTION MODERN */}
-      <section className="relative bg-[#022c22] text-white py-24 px-6 overflow-hidden">
+      <section className="relative bg-[#022c22] text-white py-16 sm:py-20 md:py-24 px-4 sm:px-6 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full overflow-hidden pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/20 rounded-full blur-[120px] animate-pulse"></div>
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-teal-500/20 rounded-full blur-[120px] animate-pulse delay-700"></div>
+          <div className="absolute top-[-10%] left-[-10%] w-[60%] sm:w-[40%] h-[40%] bg-emerald-500/20 rounded-full blur-[80px] sm:blur-[120px] animate-pulse"></div>
+          <div className="absolute bottom-[-10%] right-[-10%] w-[60%] sm:w-[40%] h-[40%] bg-teal-500/20 rounded-full blur-[80px] sm:blur-[120px] animate-pulse [animation-delay:700ms]"></div>
         </div>
 
-        <div className="max-w-5xl mx-auto text-center relative z-10 space-y-8">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] bg-white/5 text-emerald-400 border border-white/10 backdrop-blur-md">
-            <Sparkles size={14} className="animate-bounce" />{" "}
-            {setting?.deskripsi_singkat || "Sewa & Pemasaran Sawah Pribadi"}
+        <div className="max-w-5xl mx-auto text-center relative z-10 space-y-6 sm:space-y-8">
+          <div className="inline-flex items-center justify-center gap-1.5 sm:gap-2 max-w-full px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl text-[9px] sm:text-[11px] font-black uppercase tracking-[0.12em] sm:tracking-[0.2em] bg-white/5 text-emerald-400 border border-white/10 backdrop-blur-md">
+            <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-bounce shrink-0" />
+            <span className="break-words">
+              {setting?.deskripsi_singkat || "Sewa & Pemasaran Sawah Pribadi"}
+            </span>
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-[900] tracking-tight leading-[1.1] bg-gradient-to-b from-white to-white/70 bg-clip-text text-transparent">
-            Kelola & Sewakan <br />
-            <span className="text-emerald-400">Aset Sawah Produktif</span>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-[900] tracking-tight leading-[1.15] sm:leading-[1.1] bg-gradient-to-b from-white to-white/70 bg-clip-text text-transparent">
+            Sewa Lahan & Aset Sawah <br className="hidden sm:block" />
+            <span className="text-emerald-400">Produktif Milik Pribadi</span>
           </h1>
 
-          <p className="text-slate-400 text-base md:text-lg max-w-2xl mx-auto leading-relaxed font-medium">
+          <p className="text-slate-400 text-sm sm:text-base md:text-lg max-w-2xl mx-auto leading-relaxed font-medium px-1 sm:px-0">
             {pageDescription}
           </p>
 
-          <div className="pt-4 max-w-2xl mx-auto">
+          <div className="pt-2 sm:pt-4 max-w-2xl mx-auto">
             <div className="relative group">
-              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-[2rem] blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
-              <div className="relative flex items-center bg-slate-900/50 backdrop-blur-2xl border border-white/10 rounded-[1.5rem] p-2">
-                <Search
-                  className="absolute left-6 text-emerald-500"
-                  size={24}
-                />
+              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl sm:rounded-[2rem] blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+              <div className="relative flex items-center bg-slate-900/50 backdrop-blur-2xl border border-white/10 rounded-xl sm:rounded-[1.5rem] p-1.5 sm:p-2">
+                <Search className="absolute left-4 sm:left-6 text-emerald-500 w-5 h-5 sm:w-6 sm:h-6" />
                 <input
                   type="text"
                   placeholder="Cari lokasi, nama lahan, atau nomor NIB..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-14 pr-6 py-4 bg-transparent text-white placeholder-slate-500 focus:outline-none text-base md:text-lg font-medium"
+                  className="w-full pl-11 sm:pl-14 pr-4 sm:pr-6 py-3 sm:py-4 bg-transparent text-white placeholder-slate-500 focus:outline-none text-sm sm:text-base md:text-lg font-medium"
                 />
               </div>
             </div>
           </div>
         </div>
 
-        <div className="max-w-4xl mx-auto mt-20 grid grid-cols-3 gap-6 relative z-10">
+        <div className="max-w-4xl mx-auto mt-12 sm:mt-16 md:mt-20 grid grid-cols-3 gap-2 sm:gap-4 md:gap-6 relative z-10">
           {[
             {
               label: "Total Aset",
@@ -342,15 +373,17 @@ export default function LandingHome() {
           ].map((stat, i) => (
             <div
               key={i}
-              className="bg-white/5 backdrop-blur-md p-6 rounded-[2rem] border border-white/10 text-center hover:bg-white/10 transition-colors"
+              className="bg-white/5 backdrop-blur-md p-3 sm:p-4 md:p-6 rounded-xl sm:rounded-2xl md:rounded-[2rem] border border-white/10 text-center hover:bg-white/10 transition-colors min-w-0"
             >
-              <p className={`text-2xl md:text-4xl font-black ${stat.color}`}>
+              <p
+                className={`text-base sm:text-2xl md:text-4xl font-black leading-tight break-words ${stat.color}`}
+              >
                 {stat.value}
-                <span className="text-sm font-normal opacity-60">
+                <span className="text-[10px] sm:text-sm font-normal opacity-60">
                   {stat.suffix}
                 </span>
               </p>
-              <p className="text-[10px] text-emerald-500/80 font-black uppercase tracking-[0.15em] mt-2">
+              <p className="text-[8px] sm:text-[10px] text-emerald-500/80 font-black uppercase tracking-[0.08em] sm:tracking-[0.15em] mt-1 sm:mt-2 leading-tight">
                 {stat.label}
               </p>
             </div>
@@ -532,6 +565,19 @@ export default function LandingHome() {
         )}
       </main>
 
+      {/* FLOATING SCROLL TO TOP */}
+      <button
+        onClick={scrollToTop}
+        aria-label="Kembali ke atas"
+        className={`fixed bottom-6 right-6 z-30 inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/30 transition-all duration-300 cursor-pointer active:scale-95 ${
+          showScrollTop && !selectedSawah
+            ? "opacity-100 translate-y-0 pointer-events-auto"
+            : "opacity-0 translate-y-4 pointer-events-none"
+        }`}
+      >
+        <ArrowUp size={20} />
+      </button>
+
       {/* MODAL DETAIL SAWAH */}
       {selectedSawah && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-300">
@@ -540,7 +586,7 @@ export default function LandingHome() {
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 shadow-sm p-2.5">
                   <img
-                    src="/favicon.svg"
+                    src={logoUrl}
                     alt="Logo"
                     className="w-full h-full object-contain"
                   />
@@ -555,7 +601,7 @@ export default function LandingHome() {
                 </div>
               </div>
               <button
-                onClick={() => setSelectedSawah(null)}
+                onClick={closeModal}
                 className="p-2.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all cursor-pointer group"
               >
                 <X
@@ -790,7 +836,7 @@ export default function LandingHome() {
                   </a>
                 )}
                 <button
-                  onClick={() => setSelectedSawah(null)}
+                  onClick={closeModal}
                   className="px-6 py-3.5 bg-white hover:bg-slate-100 text-slate-600 rounded-2xl font-black text-xs transition-all border border-slate-200 cursor-pointer"
                 >
                   Tutup
@@ -808,7 +854,7 @@ export default function LandingHome() {
             <div className="flex items-center gap-3 text-white">
               <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 p-2 shadow-md">
                 <img
-                  src="/favicon.svg"
+                  src={logoUrl}
                   alt="Logo"
                   className="w-full h-full object-contain"
                 />
@@ -817,17 +863,16 @@ export default function LandingHome() {
                 {setting?.nama_aplikasi || "SAWAHKU"}
               </span>
             </div>
-            <p className="font-bold text-sm tracking-tight text-slate-300">
-              {setting?.deskripsi_singkat || "SAWAHKU"}
+            <p className="text-slate-200 font-semibold">
+              {setting?.deskripsi_singkat ||
+                "Portal Penyewaan Sawah Pribadi di Pasuruan"}
             </p>
             <p className="text-slate-400 text-xs leading-relaxed max-w-sm font-normal">
               {pageDescription}
             </p>
           </div>
           <div className="space-y-2.5 text-left">
-            <p className="font-bold text-white text-sm tracking-wide">
-              Informasi Kontak & Pengelola
-            </p>
+            <p className="font-bold text-white text-sm tracking-wide">Kontak</p>
             <p className="text-slate-200 font-semibold">
               Dikelola oleh {setting?.nama_pengelola || "-"}
             </p>
@@ -857,7 +902,7 @@ export default function LandingHome() {
 
           <div className="space-y-3">
             <p className="font-bold text-white text-sm tracking-wide">
-              Lokasi Kantor / Wilayah
+              Alamat Pemilik
             </p>
             <div className="w-full h-36 rounded-2xl overflow-hidden border border-slate-800 shadow-sm bg-slate-800">
               <iframe

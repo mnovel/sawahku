@@ -959,78 +959,98 @@ export default function Transaksi() {
 
             {/* TAMPILAN TABEL UNTUK DESKTOP */}
             <div className="hidden sm:block overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-slate-50 border-b border-slate-200">
+              <table className="w-full min-w-[1000px] text-left border-collapse">
+                <thead className="bg-slate-50/80 border-b border-slate-200">
                   <tr>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">
+                    <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">
                       Sawah & Penyewa
                     </th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">
-                      Tanggal & Durasi
+                    <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">
+                      Waktu & Durasi
                     </th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">
+                    <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">
                       Harga & Pembayaran
                     </th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">
+                    <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">
                       Status Sewa
                     </th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-right">
+                    <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest text-right">
                       Aksi
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 text-sm">
                   {currentItems.map((trx) => (
                     <tr
                       key={trx.id}
-                      className={`hover:bg-slate-50/80 transition-colors ${trx.status === "batal" ? "opacity-60 bg-slate-50" : ""}`}
+                      className={`hover:bg-emerald-50/30 transition-colors group ${
+                        trx.status === "batal" ? "opacity-60 bg-slate-50" : ""
+                      }`}
                     >
-                      <td className="px-6 py-4">
-                        <div className="font-semibold text-slate-800 flex items-center gap-2">
-                          <Sprout size={16} className="text-emerald-500" />{" "}
-                          {trx.expand?.sawah?.nama || "Sawah Dihapus"}
-                        </div>
-                        <div className="text-sm text-slate-500 flex items-center gap-2 mt-1">
-                          <User size={14} />{" "}
-                          {trx.expand?.penyewa?.nama || "Penyewa Dihapus"}
+                      {/* KOLOM 1: SAWAH & PENYEWA */}
+                      <td className="px-6 py-5 align-top whitespace-nowrap">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0">
+                            <Sprout size={16} className="text-emerald-600" />
+                          </div>
+                          <div>
+                            <div className="font-bold text-slate-900 text-base leading-tight group-hover:text-emerald-700 transition-colors">
+                              {trx.expand?.sawah?.nama || "Sawah Dihapus"}
+                            </div>
+                            <div className="text-xs text-slate-500 flex items-center gap-1.5 mt-1 font-medium">
+                              <User size={12} className="text-slate-400" />
+                              {trx.expand?.penyewa?.nama || "Penyewa Dihapus"}
+                            </div>
+                          </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="text-slate-800 font-medium">
+
+                      {/* KOLOM 2: TANGGAL & DURASI */}
+                      <td className="px-6 py-5 align-top">
+                        <div className="font-bold text-slate-800 text-sm">
                           {formatDate(trx.tanggal_mulai)}
                         </div>
-                        {trx.tanggal_jatuh_tempo &&
-                          trx.status_bayar !== "lunas" && (
-                            <div className="text-xs text-red-600 font-semibold mt-0.5">
-                              Jatuh Tempo: {formatDate(trx.tanggal_jatuh_tempo)}
-                            </div>
-                          )}
-                        {trx.tanggal_panen && (
-                          <div className="text-xs text-slate-500">
+
+                        {trx.tanggal_panen ? (
+                          <div className="text-[11px] text-slate-500 font-medium mt-0.5">
                             Selesai: {formatDate(trx.tanggal_panen)}
                           </div>
-                        )}
-                        <div className="text-[11px] text-emerald-700 font-semibold mt-1 flex items-center gap-1 bg-emerald-50 w-fit px-2 py-0.5 rounded-md border border-emerald-100">
-                          <Clock size={12} />{" "}
-                          {trx.status === "aktif" ? "Berjalan " : "Durasi "}{" "}
-                          {calculateDuration(
-                            trx.tanggal_mulai,
-                            trx.tanggal_panen,
-                          )}
+                        ) : trx.tanggal_jatuh_tempo &&
+                          trx.status_bayar !== "lunas" ? (
+                          <div className="text-[11px] text-red-600 font-bold mt-0.5 flex items-center gap-1">
+                            <Clock size={10} /> Tempo:{" "}
+                            {formatDate(trx.tanggal_jatuh_tempo)}
+                          </div>
+                        ) : null}
+
+                        <div className="mt-2">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100">
+                            <Clock size={12} />
+                            {trx.status === "aktif"
+                              ? "Berjalan "
+                              : "Durasi "}{" "}
+                            {calculateDuration(
+                              trx.tanggal_mulai,
+                              trx.tanggal_panen,
+                            )}
+                          </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="text-slate-800 font-bold mb-1">
+
+                      {/* KOLOM 3: HARGA & PEMBAYARAN */}
+                      <td className="px-6 py-5 align-top">
+                        <div className="text-slate-900 font-black text-base">
                           Rp {trx.harga_sewa.toLocaleString("id-ID")}
                         </div>
-                        <div className="flex flex-col gap-1">
+
+                        <div className="flex flex-col gap-1.5 mt-1.5">
                           <span
-                            className={`w-fit px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wider ${
+                            className={`w-fit px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border shadow-xs ${
                               trx.status_bayar === "lunas"
-                                ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                                ? "bg-emerald-500 text-white border-emerald-600"
                                 : trx.status_bayar === "dp"
-                                  ? "bg-amber-100 text-amber-700 border-amber-200"
-                                  : "bg-red-100 text-red-700 border-red-200"
+                                  ? "bg-amber-400 text-amber-950 border-amber-500"
+                                  : "bg-rose-500 text-white border-rose-600"
                             }`}
                           >
                             {trx.status_bayar === "belum_bayar"
@@ -1039,9 +1059,10 @@ export default function Transaksi() {
                                 ? "DP / Sebagian"
                                 : "Lunas"}
                           </span>
+
                           {trx.status_bayar !== "lunas" && (
-                            <span className="text-[11px] text-slate-500">
-                              Kurang: Rp{" "}
+                            <span className="text-[11px] font-semibold text-rose-600">
+                              Sisa: Rp{" "}
                               {(
                                 trx.harga_sewa - (trx.nominal_dibayar || 0)
                               ).toLocaleString("id-ID")}
@@ -1049,10 +1070,27 @@ export default function Transaksi() {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+
+                      {/* KOLOM 4: STATUS SEWA */}
+                      <td className="px-6 py-5 align-top">
                         <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium border ${trx.status === "aktif" ? "bg-amber-50 text-amber-700 border-amber-200" : trx.status === "selesai" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-300"}`}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border ${
+                            trx.status === "aktif"
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : trx.status === "selesai"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                : "bg-slate-100 text-slate-600 border-slate-300"
+                          }`}
                         >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              trx.status === "aktif"
+                                ? "bg-amber-500 animate-pulse"
+                                : trx.status === "selesai"
+                                  ? "bg-emerald-500"
+                                  : "bg-slate-400"
+                            }`}
+                          ></span>
                           {trx.status === "aktif"
                             ? "Berjalan"
                             : trx.status === "selesai"
@@ -1061,67 +1099,76 @@ export default function Transaksi() {
                         </span>
                       </td>
 
-                      {/* KOLOM AKSI */}
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex flex-wrap items-center justify-end gap-1.5 max-w-[150px] ml-auto">
+                      {/* KOLOM 5: AKSI */}
+                      <td className="px-6 py-5 align-middle text-right">
+                        <div className="flex items-center justify-end gap-1 opacity-70 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                          {/* Kelompok 1: Aksi Utama */}
                           <button
-                            onClick={() => handleRenewLease(trx)}
-                            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                            title="Perpanjang Sewa"
+                            onClick={() => openPayModal(trx)}
+                            className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-600 hover:text-white rounded-xl transition-all cursor-pointer shadow-xs"
+                            title="Kelola Pembayaran"
                           >
-                            <RotateCw size={16} />
+                            <Wallet size={16} />
                           </button>
+
+                          <button
+                            onClick={() => openLogModal(trx)}
+                            className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white rounded-xl transition-all cursor-pointer shadow-xs"
+                            title="Log Bulanan"
+                          >
+                            <Calendar size={16} />
+                          </button>
+
+                          <button
+                            onClick={() => setNotaTrx(trx)}
+                            className="p-2 text-slate-600 bg-slate-100 hover:bg-slate-700 hover:text-white rounded-xl transition-all cursor-pointer shadow-xs"
+                            title="Cetak Nota"
+                          >
+                            <Printer size={16} />
+                          </button>
+
                           {trx.status_bayar !== "lunas" &&
                             trx.status === "aktif" && (
                               <button
                                 onClick={() => sendWATagihan(trx)}
-                                className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                                className="p-2 text-emerald-600 bg-white border border-emerald-200 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer shadow-xs"
                                 title="Tagih via WhatsApp"
                               >
                                 <MessageCircle size={16} />
                               </button>
                             )}
-                          <button
-                            onClick={() => openPayModal(trx)}
-                            className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
-                            title="Kelola Pembayaran"
-                          >
-                            <Wallet size={16} />
-                          </button>
-                          <button
-                            onClick={() => setNotaTrx(trx)}
-                            className="p-1.5 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
-                            title="Cetak Nota"
-                          >
-                            <Printer size={16} />
-                          </button>
-                          <button
-                            onClick={() => openLogModal(trx)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                            title="Log Bulanan"
-                          >
-                            <Calendar size={16} />
-                          </button>
+
+                          {/* Kelompok 2: Aksi Sekunder */}
                           {trx.status === "aktif" && (
                             <>
+                              {/* Garis Pemisah yang lebih aman */}
+                              <div className="w-[1px] h-5 bg-slate-300 mx-1 shrink-0"></div>
+
                               <button
-                                onClick={() => openEditModal(trx)}
-                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                                title="Edit"
+                                onClick={() => handleRenewLease(trx)}
+                                className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
+                                title="Perpanjang Sewa"
                               >
-                                <Pencil size={16} />
+                                <RotateCw size={16} />
                               </button>
                               <button
                                 onClick={() => handleSelesai(trx)}
-                                className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                                className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer"
                                 title="Selesaikan Panen"
                               >
                                 <CheckCircle2 size={16} />
                               </button>
                               <button
+                                onClick={() => openEditModal(trx)}
+                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+                                title="Edit"
+                              >
+                                <Pencil size={16} />
+                              </button>
+                              <button
                                 onClick={() => handleBatalSewa(trx)}
-                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                                title="Batalkan"
+                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                                title="Batalkan Sewa"
                               >
                                 <Ban size={16} />
                               </button>
