@@ -25,6 +25,7 @@ import {
   Wallet,
   MessageCircle,
   RotateCw,
+  ArrowUpDown,
 } from "lucide-react";
 
 import FormTransaksiModal from "../components/transaksi/FormTransaksiModal";
@@ -169,9 +170,10 @@ export default function Transaksi() {
   const [filterBayar, setFilterBayar] = useState(
     searchParams.get("bayar") || "semua",
   );
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [limit] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10); // Pilihan data per halaman mirip layout Sawah
 
   const [list, setList] = useState<Transaksi[]>([]);
   const [sawahList, setSawahList] = useState<Sawah[]>([]);
@@ -226,9 +228,11 @@ export default function Transaksi() {
   async function loadData() {
     setLoading(true);
     try {
+      const sortQuery =
+        sortOrder === "desc" ? "-tanggal_mulai" : "tanggal_mulai";
       const trxData = await pb
         .collection("transaksi_sewa")
-        .getFullList<Transaksi>({ sort: "-created", expand: "sawah,penyewa" });
+        .getFullList<Transaksi>({ sort: sortQuery, expand: "sawah,penyewa" });
       const sawahData = await pb.collection("sawah").getFullList<Sawah>();
       const penyewaData = await pb.collection("penyewa").getFullList<Penyewa>();
       setList(trxData);
@@ -243,11 +247,11 @@ export default function Transaksi() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [sortOrder]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterStatus, filterPenyewa, filterBayar, limit]);
+  }, [searchQuery, filterStatus, filterPenyewa, filterBayar, itemsPerPage]);
 
   const filteredList = list.filter((trx) => {
     const keyword = searchQuery.toLowerCase();
@@ -269,14 +273,12 @@ export default function Transaksi() {
     return matchSearch && matchStatus && matchPenyewa && matchBayar;
   });
 
-  const indexOfLastItem = currentPage * limit;
-  const indexOfFirstItem = indexOfLastItem - limit;
-  const currentItems = filteredList.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredList.length / limit);
-
-  const paginate = (pageNumber: number) => {
-    if (pageNumber >= 1 && pageNumber <= totalPages) setCurrentPage(pageNumber);
-  };
+  const totalPages = Math.ceil(filteredList.length / itemsPerPage) || 1;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentItems = filteredList.slice(
+    startIndex,
+    startIndex + itemsPerPage,
+  );
 
   const availablePenyewa = penyewaList.filter(
     (p) => p.status !== "nonaktif" || p.id === form.penyewa,
@@ -661,8 +663,8 @@ export default function Transaksi() {
         </button>
       </div>
 
-      {/* FILTER & PENCARIAN */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      {/* FILTER, PENCARIAN & SORTING TANGGAL */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
         <div className="relative">
           <Search className="absolute left-3 top-3 text-slate-400" size={20} />
           <input
@@ -766,6 +768,15 @@ export default function Transaksi() {
             </svg>
           </div>
         </div>
+
+        {/* Sorting Tanggal Sewa */}
+        <button
+          onClick={() => setSortOrder(sortOrder === "desc" ? "asc" : "desc")}
+          className="flex items-center justify-center gap-2 bg-white border border-slate-300 hover:bg-slate-50 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-700 shadow-sm transition-colors cursor-pointer w-full"
+        >
+          <ArrowUpDown size={16} className="text-slate-500" />
+          Tgl Sewa: {sortOrder === "desc" ? "Terbaru" : "Terlama"}
+        </button>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -1050,7 +1061,7 @@ export default function Transaksi() {
                         </span>
                       </td>
 
-                      {/* KOLOM AKSI (DIATUR SUPAYA RAPI 3 DI ATAS, SISANYA DI BAWAH) */}
+                      {/* KOLOM AKSI */}
                       <td className="px-6 py-4 text-right">
                         <div className="flex flex-wrap items-center justify-end gap-1.5 max-w-[150px] ml-auto">
                           <button
@@ -1125,17 +1136,20 @@ export default function Transaksi() {
             </div>
           </>
         )}
+      </div>
 
-        {!loading && filteredList.length > 0 && (
-          <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-xs sm:text-sm text-slate-500">
+      {/* PAGINATION MIRIP LAYOUT SAWAH DENGAN PILIHAN ITEMS PER PAGE */}
+      {!loading && filteredList.length > 0 && (
+        <div className="px-6 py-4 mt-4 border border-slate-200 bg-white rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-slate-500">
               Menampilkan{" "}
               <span className="font-semibold text-slate-700">
-                {indexOfFirstItem + 1}
+                {startIndex + 1}
               </span>{" "}
               -{" "}
               <span className="font-semibold text-slate-700">
-                {Math.min(indexOfLastItem, filteredList.length)}
+                {Math.min(startIndex + itemsPerPage, filteredList.length)}
               </span>{" "}
               dari{" "}
               <span className="font-semibold text-slate-700">
@@ -1143,34 +1157,56 @@ export default function Transaksi() {
               </span>{" "}
               transaksi
             </p>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => paginate(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="p-2 rounded-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors cursor-pointer"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              {Array.from({ length: totalPages }).map((_, index) => (
-                <button
-                  key={index + 1}
-                  onClick={() => paginate(index + 1)}
-                  className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg border transition-colors cursor-pointer ${currentPage === index + 1 ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50"}`}
-                >
-                  {index + 1}
-                </button>
-              ))}
-              <button
-                onClick={() => paginate(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="p-2 rounded-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors cursor-pointer"
-              >
-                <ChevronRight size={18} />
-              </button>
-            </div>
+
+            {/* Pilihan Jumlah Data per Halaman */}
+            <select
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-medium text-slate-700 outline-none cursor-pointer shadow-xs"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
           </div>
-        )}
-      </div>
+
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="p-2 rounded-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            {Array.from({ length: totalPages }).map((_, index) => (
+              <button
+                key={index + 1}
+                onClick={() => setCurrentPage(index + 1)}
+                className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg border transition-colors cursor-pointer ${
+                  currentPage === index + 1
+                    ? "bg-emerald-600 text-white border-emerald-600"
+                    : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50"
+                }`}
+              >
+                {index + 1}
+              </button>
+            ))}
+            <button
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+              }
+              disabled={currentPage === totalPages}
+              className="p-2 rounded-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* RENDER MODAL */}
       <FormTransaksiModal

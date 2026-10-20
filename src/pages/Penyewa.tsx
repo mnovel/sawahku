@@ -21,6 +21,9 @@ import {
   Sprout,
   Calendar,
   ClipboardList,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUpDown,
 } from "lucide-react";
 
 interface PenyewaType {
@@ -71,9 +74,14 @@ export default function Penyewa() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
 
-  // State Search & Filter
+  // State Search, Filter & Sorting
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState("aktif");
+  const [filterStatus, setFilterStatus] = useState("semua");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
+  // State Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // State Modal Detail & Kredibilitas
   const [selectedPenyewa, setSelectedPenyewa] = useState<PenyewaType | null>(
@@ -86,9 +94,10 @@ export default function Penyewa() {
   async function load() {
     setLoading(true);
     try {
+      const sortQuery = sortOrder === "asc" ? "nama" : "-nama";
       const data = await pb
         .collection("penyewa")
-        .getFullList<PenyewaType>({ sort: "-created" });
+        .getFullList<PenyewaType>({ sort: sortQuery });
       setList(data);
     } catch (err) {
       console.error(err);
@@ -99,7 +108,11 @@ export default function Penyewa() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [sortOrder]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterStatus, sortOrder]);
 
   // LOGIKA FILTER (Pencarian + Status)
   const filteredList = list.filter((p) => {
@@ -113,6 +126,13 @@ export default function Penyewa() {
 
     return matchSearch && matchStatus;
   });
+
+  const totalPages = Math.ceil(filteredList.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentItems = filteredList.slice(
+    startIndex,
+    startIndex + itemsPerPage,
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -156,7 +176,6 @@ export default function Penyewa() {
     });
   }
 
-  // FUNGSI BUKA MODAL KREDIBILITAS & RIWAYAT SEWA
   async function openDetailModal(penyewa: PenyewaType) {
     setSelectedPenyewa(penyewa);
     setIsDetailOpen(true);
@@ -178,7 +197,6 @@ export default function Penyewa() {
     }
   }
 
-  // HITUNG ANGKA METRIK KREDIBILITAS
   const totalSewa = historyList.length;
   const totalNominal = historyList.reduce((sum, t) => sum + t.harga_sewa, 0);
   const totalDibayar = historyList.reduce(
@@ -213,30 +231,64 @@ export default function Penyewa() {
         </button>
       </div>
 
-      {/* BARIS PENCARIAN & FILTER */}
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <div className="relative flex-1 max-w-md">
+      {/* BARIS PENCARIAN, FILTER & SORTING */}
+      <div className="flex flex-col lg:flex-row items-center gap-3 mb-6">
+        {/* Kolom Pencarian */}
+        <div className="relative w-full lg:flex-1">
           <Search className="absolute left-3 top-3 text-slate-400" size={20} />
           <input
             type="text"
             placeholder="Cari nama, kontak, atau alamat..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm"
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm text-sm"
           />
         </div>
 
-        <div className="relative w-full md:w-56">
-          <Filter className="absolute left-3 top-3 text-slate-400" size={20} />
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="w-full pl-10 pr-8 py-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm appearance-none cursor-pointer text-slate-700 font-medium"
+        {/* Wrapper untuk Dropdown Filter & Tombol Urutkan agar tidak terlalu lebar */}
+        <div className="flex items-center gap-3 w-full lg:w-auto">
+          {/* Dropdown Status */}
+          <div className="relative w-full sm:w-48">
+            <Filter
+              className="absolute left-3 top-3 text-slate-400"
+              size={20}
+            />
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="w-full pl-10 pr-8 py-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm appearance-none cursor-pointer text-slate-700 font-medium text-sm"
+            >
+              <option value="semua">Semua Status</option>
+              <option value="aktif">Aktif</option>
+              <option value="nonaktif">Non-Aktif</option>
+            </select>
+            <div className="absolute right-3 top-3 pointer-events-none">
+              <svg
+                className="w-5 h-5 text-slate-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M19 9l-7 7-7-7"
+                ></path>
+              </svg>
+            </div>
+          </div>
+
+          {/* Tombol Urutkan Nama */}
+          <button
+            onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white border border-slate-300 hover:bg-slate-50 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-700 shadow-sm transition-colors cursor-pointer shrink-0"
           >
-            <option value="semua">Semua Status</option>
-            <option value="aktif">Aktif</option>
-            <option value="nonaktif">Non-Aktif</option>
-          </select>
+            <ArrowUpDown size={16} className="text-slate-500" />
+            <span className="truncate">
+              Urutkan: {sortOrder === "asc" ? "A - Z" : "Z - A"}
+            </span>
+          </button>
         </div>
       </div>
 
@@ -269,7 +321,7 @@ export default function Penyewa() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredList.map((p) => (
+                {currentItems.map((p) => (
                   <tr
                     key={p.id}
                     className="hover:bg-slate-50/80 transition-colors"
@@ -296,16 +348,15 @@ export default function Penyewa() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        {/* TOMBOL MENUJU HALAMAN TRANSAKSI SESUAI PENYEWA */}
                         <button
-                          onClick={() => navigate(ROUTES.ADMIN.TRANSAKSI({ penyewa: p.id }))}
+                          onClick={() =>
+                            navigate(ROUTES.ADMIN.TRANSAKSI({ penyewa: p.id }))
+                          }
                           className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                           title="Lihat Transaksi Penyewa"
                         >
                           <ClipboardList size={18} />
                         </button>
-
-                        {/* TOMBOL KREDIBILITAS & RIWAYAT */}
                         <button
                           onClick={() => openDetailModal(p)}
                           className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
@@ -313,8 +364,6 @@ export default function Penyewa() {
                         >
                           <Eye size={18} />
                         </button>
-
-                        {/* TOMBOL EDIT */}
                         <button
                           onClick={() => {
                             setForm({
@@ -331,8 +380,6 @@ export default function Penyewa() {
                         >
                           <Pencil size={18} />
                         </button>
-
-                        {/* TOMBOL HAPUS */}
                         <button
                           onClick={() => handleDelete(p.id)}
                           className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
@@ -344,7 +391,7 @@ export default function Penyewa() {
                     </td>
                   </tr>
                 ))}
-                {filteredList.length === 0 && (
+                {currentItems.length === 0 && (
                   <tr>
                     <td
                       colSpan={5}
@@ -359,6 +406,58 @@ export default function Penyewa() {
           </div>
         )}
       </div>
+
+      {/* PAGINATION */}
+      {!loading && filteredList.length > 0 && (
+        <div className="px-6 py-4 mt-4 border border-slate-200 bg-white rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-slate-500">
+            Menampilkan{" "}
+            <span className="font-semibold text-slate-700">
+              {startIndex + 1}
+            </span>{" "}
+            -{" "}
+            <span className="font-semibold text-slate-700">
+              {Math.min(startIndex + itemsPerPage, filteredList.length)}
+            </span>{" "}
+            dari{" "}
+            <span className="font-semibold text-slate-700">
+              {filteredList.length}
+            </span>{" "}
+            data penyewa
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="p-2 rounded-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            {Array.from({ length: totalPages }).map((_, index) => (
+              <button
+                key={index + 1}
+                onClick={() => setCurrentPage(index + 1)}
+                className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg border transition-colors cursor-pointer ${
+                  currentPage === index + 1
+                    ? "bg-emerald-600 text-white border-emerald-600"
+                    : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50"
+                }`}
+              >
+                {index + 1}
+              </button>
+            ))}
+            <button
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+              }
+              disabled={currentPage === totalPages}
+              className="p-2 rounded-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* MODAL FORM TAMBAH / EDIT PENYEWA */}
       {isModalOpen && (

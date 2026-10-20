@@ -19,6 +19,7 @@ import {
   RotateCw,
   Calendar,
   Image as ImageIcon,
+  Hourglass,
 } from "lucide-react";
 
 interface Transaksi {
@@ -73,6 +74,23 @@ const formatWA = (phone: string) => {
     cleaned = "62" + cleaned.slice(1);
   }
   return cleaned;
+};
+
+// Fungsi menghitung total bulan berjalan
+const calculateMonthCount = (startDateStr: string) => {
+  if (!startDateStr) return 0;
+  const start = new Date(startDateStr);
+  const end = new Date();
+
+  let months =
+    (end.getFullYear() - start.getFullYear()) * 12 +
+    (end.getMonth() - start.getMonth());
+  let days = end.getDate() - start.getDate();
+
+  if (days < 0) {
+    months--;
+  }
+  return Math.max(0, months);
 };
 
 const calculateDuration = (startDateStr: string) => {
@@ -132,6 +150,7 @@ export default function Dashboard() {
 
   const [activeTrx, setActiveTrx] = useState<Transaksi[]>([]);
   const [overdueTrx, setOverdueTrx] = useState<Transaksi[]>([]);
+  const [longTermTrx, setLongTermTrx] = useState<Transaksi[]>([]); // State untuk sewa >= 4 bulan
   const [recentLogs, setRecentLogs] = useState<LogBulanan[]>([]);
 
   useEffect(() => {
@@ -141,7 +160,7 @@ export default function Dashboard() {
         const now = new Date();
         const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-        // 1. Data Sawah & Okupansi (beserta total luas_total dari skema baru)
+        // 1. Data Sawah & Okupansi
         let sawahList: any[] = [];
         try {
           sawahList = await pb.collection("sawah").getFullList();
@@ -175,8 +194,15 @@ export default function Dashboard() {
             .getFullList<Transaksi>({
               filter: 'status="aktif"',
               expand: "sawah,penyewa",
-              sort: "-created",
             });
+
+          // Sorting: Tanggal mulai paling lama (terdahulu) berada di atas
+          trxAktif.sort((a, b) => {
+            return (
+              new Date(a.tanggal_mulai).getTime() -
+              new Date(b.tanggal_mulai).getTime()
+            );
+          });
         } catch (e) {
           console.error("Gagal memuat transaksi sewa:", e);
         }
@@ -186,13 +212,19 @@ export default function Dashboard() {
           (t) => t.status_bayar !== "lunas",
         );
 
-        // 5. Total Potensi Pendapatan Sewa Aktif
+        // 5. Filter Transaksi yang sewanya sudah 4 bulan atau lebih (Durasi terlama di atas)
+        const filteredLongTerm = trxAktif.filter((t) => {
+          const months = calculateMonthCount(t.tanggal_mulai);
+          return months >= 4;
+        });
+
+        // 6. Total Potensi Pendapatan Sewa Aktif
         const potensi = trxAktif.reduce(
           (sum, item) => sum + item.harga_sewa,
           0,
         );
 
-        // 6. Arus Kas Nyata Bulan Ini (dari riwayat_bayar)
+        // 7. Arus Kas Nyata Bulan Ini
         let cashInThisMonth = 0;
         try {
           const bayarBulanIni = await pb
@@ -211,13 +243,13 @@ export default function Dashboard() {
           );
         }
 
-        // 7. Feed Aktivitas Terbaru (Log Bulanan)
+        // 8. Feed Aktivitas Terbaru (Log Bulanan)
         let logs: LogBulanan[] = [];
         try {
           const resLogs = await pb
             .collection("log_bulanan")
             .getList<LogBulanan>(1, 4, {
-              sort: "-created",
+              sort: "-periode,-created",
               expand: "transaksi.sawah,transaksi.penyewa",
             });
           logs = resLogs.items;
@@ -237,6 +269,7 @@ export default function Dashboard() {
 
         setActiveTrx(trxAktif.slice(0, 5));
         setOverdueTrx(tagihanMenunggak);
+        setLongTermTrx(filteredLongTerm);
         setRecentLogs(logs);
       } catch (err) {
         console.error("Error umum dashboard:", err);
@@ -490,6 +523,68 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* NEW SECTION: SECTION / CARD NOTIFIKASI SEWA >= 4 BULAN DAN BELUM SELESAI */}
+      {!loading && longTermTrx.length > 0 && (
+        <div className="bg-purple-50/90 border border-purple-200 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2 text-purple-900 font-bold">
+              <Hourglass className="text-purple-600" size={22} />
+              <h3>
+                Pemberitahuan Masa Sewa Panjang (≥ 4 Bulan Berjalan) (
+                {longTermTrx.length})
+              </h3>
+            </div>
+            <span className="text-xs text-purple-700 font-medium">
+              Diurutkan dari durasi terlama
+            </span>
+          </div>
+          <div className="space-y-3">
+            {longTermTrx.map((trx) => {
+              const monthCount = calculateMonthCount(trx.tanggal_mulai);
+              return (
+                <div
+                  key={trx.id}
+                  className="bg-white p-4 rounded-xl border border-purple-200/60 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs"
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-slate-800 text-base">
+                        {trx.expand?.sawah?.nama || "Sawah"}
+                      </span>
+                      <span className="bg-purple-100 text-purple-700 text-[11px] font-bold px-2 py-0.5 rounded-full border border-purple-200">
+                        {monthCount} Bulan Berjalan
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Penyewa:{" "}
+                      <span className="font-semibold text-slate-700">
+                        {trx.expand?.penyewa?.nama || "Penyewa"}
+                      </span>{" "}
+                      | Mulai Sewa:{" "}
+                      <span className="font-medium text-slate-600">
+                        {formatDate(trx.tanggal_mulai)}
+                      </span>
+                    </p>
+                  </div>
+                  <button
+                    onClick={() =>
+                      navigate(
+                        ROUTES.ADMIN.TRANSAKSI({
+                          q: trx.expand?.sawah?.nama || "",
+                        }),
+                      )
+                    }
+                    className="flex items-center justify-center gap-1.5 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer shrink-0"
+                  >
+                    <RotateCw size={14} /> Kelola Transaksi
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* 4. GRID 2 KOLOM: TRANSAKSI AKTIF & FEED JURNAL AKTIVITAS */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
@@ -497,7 +592,7 @@ export default function Dashboard() {
             <div>
               <h3 className="font-bold text-slate-800">Sawah Sedang Disewa</h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                5 transaksi terbaru yang sedang berjalan.
+                Diurutkan dari durasi sewa terlama (paling awal mulai).
               </p>
             </div>
             <button

@@ -15,6 +15,8 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
+  ArrowUpDown,
+  Filter,
 } from "lucide-react";
 
 interface SertifikatType {
@@ -79,6 +81,8 @@ export default function Sawah() {
   const [editId, setEditId] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState("semua");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -90,8 +94,9 @@ export default function Sawah() {
   async function load() {
     setLoading(true);
     try {
+      const sortQuery = sortOrder === "asc" ? "nama" : "-nama";
       const data = await pb.collection("sawah").getFullList<SawahType>({
-        sort: "-created",
+        sort: sortQuery,
         expand: "sertifikat(sawah)",
       });
       setList(data);
@@ -105,11 +110,11 @@ export default function Sawah() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [sortOrder]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]);
+  }, [searchQuery, filterStatus, sortOrder]);
 
   function handleAddSertifikatField() {
     setSertifikatList([
@@ -243,12 +248,16 @@ export default function Sawah() {
         c.nib?.toString().includes(query) ||
         c.tipe_hak?.toLowerCase().includes(query),
     );
-    return (
+
+    const matchSearch =
       s.nama?.toLowerCase().includes(query) ||
       s.lokasi?.toLowerCase().includes(query) ||
       s.deskripsi?.toLowerCase().includes(query) ||
-      matchCert
-    );
+      matchCert;
+
+    const matchStatus = filterStatus === "semua" || s.status === filterStatus;
+
+    return matchSearch && matchStatus;
   });
 
   const totalPages = Math.ceil(filteredList.length / itemsPerPage);
@@ -298,8 +307,10 @@ export default function Sawah() {
         </button>
       </div>
 
-      <div className="mb-6">
-        <div className="relative w-full md:max-w-md">
+      {/* BARIS PENCARIAN, FILTER & SORTING */}
+      <div className="flex flex-col md:flex-row items-center gap-3 mb-6">
+        {/* Kolom Pencarian Dibuat Lebih Fleksibel */}
+        <div className="relative w-full md:flex-1">
           <Search className="absolute left-3 top-3 text-slate-400" size={20} />
           <input
             type="text"
@@ -309,6 +320,44 @@ export default function Sawah() {
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm text-sm"
           />
         </div>
+
+        {/* Filter Status Sawah */}
+        <div className="relative w-full md:w-48">
+          <Filter className="absolute left-3 top-3 text-slate-400" size={20} />
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="w-full pl-10 pr-8 py-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm appearance-none cursor-pointer text-slate-700 font-medium text-sm"
+          >
+            <option value="semua">Semua Status</option>
+            <option value="tersedia">Tersedia</option>
+            <option value="disewa">Disewa</option>
+          </select>
+          <div className="absolute right-3 top-3 pointer-events-none">
+            <svg
+              className="w-5 h-5 text-slate-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M19 9l-7 7-7-7"
+              ></path>
+            </svg>
+          </div>
+        </div>
+
+        {/* Tombol Sorting Nama AtoZ / ZtoA */}
+        <button
+          onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+          className="w-full md:w-auto flex items-center justify-center gap-2 bg-white border border-slate-300 hover:bg-slate-50 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-700 shadow-sm transition-colors cursor-pointer shrink-0"
+        >
+          <ArrowUpDown size={16} className="text-slate-500" />
+          Urutkan: {sortOrder === "asc" ? "A - Z" : "Z - A"}
+        </button>
       </div>
 
       {loading ? (
@@ -317,7 +366,7 @@ export default function Sawah() {
         </div>
       ) : currentItems.length === 0 ? (
         <div className="p-12 text-center text-slate-400 bg-white rounded-2xl border border-slate-200">
-          Belum ada data sawah.
+          Belum ada data sawah yang cocok.
         </div>
       ) : (
         <>
