@@ -734,7 +734,7 @@ export default function LandingHome() {
                       Sinkronisasi status terkini...
                     </span>
                   </div>
-                ) : transaksiAktif ? (
+                ) : selectedSawah.status !== "tersedia" || transaksiAktif ? (
                   <div className="bg-amber-50 border border-amber-200 p-5 rounded-[2rem] flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
                       <ShieldCheck size={24} />
@@ -744,8 +744,9 @@ export default function LandingHome() {
                         Lahan Sedang Disewa
                       </p>
                       <p className="text-xs font-bold text-amber-900">
-                        Mulai Masa Sewa:{" "}
-                        {formatTanggalIndo(transaksiAktif.tanggal_mulai)}
+                        {transaksiAktif?.tanggal_mulai
+                          ? `Mulai Masa Sewa: ${formatTanggalIndo(transaksiAktif.tanggal_mulai)}`
+                          : "Status lahan saat ini tercatat sedang disewa/tidak tersedia."}
                       </p>
                     </div>
                   </div>
