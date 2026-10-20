@@ -1,0 +1,10 @@
+# Izinkan semua perayap (crawler) mengakses situs
+User-agent: *
+Allow: /
+
+# Larang mesin pencari merayapi halaman dashboard/admin privat
+Disallow: /admin/
+Disallow: /login/
+
+# Tentukan lokasi peta situs (sitemap) jika Anda memilikinya nanti
+# Sitemap: https://sawahku.novelwardah.com/sitemap.xml
