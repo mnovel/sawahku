@@ -5,7 +5,11 @@ export interface SettingApp {
   id?: string;
   nama_aplikasi?: string;
   deskripsi?: string;
+  deskripsi_singkat?: string;
+  keyword?: string;
   nama_pengelola?: string;
+  domain?: string;
+  logo?: string;
   alamat?: string;
   nomor_wa?: string;
   catatan_nota?: string;
