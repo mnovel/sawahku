@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import useSetting from "../hooks/useSetting";
 import { Link, useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { ROUTES } from "../routes";
 import { Lock, Mail, ArrowLeft, LogIn } from "lucide-react";
 
@@ -14,7 +15,7 @@ export default function Login() {
   const { setting } = useSetting();
   const navigate = useNavigate();
 
-  // Redirect otomatis ke dashboard jika sesi login sudah aktif[cite: 18]
+  // Redirect otomatis ke dashboard jika sesi login sudah aktif
   useEffect(() => {
     if (user) {
       navigate(ROUTES.ADMIN.DASHBOARD, { replace: true });
@@ -29,14 +30,26 @@ export default function Login() {
       await login(email, password);
       navigate(ROUTES.ADMIN.DASHBOARD, { replace: true });
     } catch (err: any) {
+      console.error("Login error:", err);
       setError("Login gagal. Periksa kembali email dan password Anda.");
     } finally {
       setLoading(false);
     }
   };
 
+  // Pengaturan Title & Meta dinamis dari Database dengan Fallback aman
+  const pageTitle = setting?.nama_aplikasi 
+    ? `Login Administrator - ${setting.nama_aplikasi}` 
+    : "Login Administrator - Sawahku";
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 flex items-center justify-center p-4 relative font-sans selection:bg-emerald-500 selection:text-white">
+      {/* PENGATURAN META / HELMET */}
+      <Helmet>
+        <title>{pageTitle}</title>
+        <meta name="description" content="Halaman masuk khusus administrator dan pengelola sistem manajemen lahan sawah." />
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 p-8 space-y-6">
         

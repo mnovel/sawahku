@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { ROUTES } from "../routes";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -39,8 +40,29 @@ export default function DashboardLayout() {
     { name: "Pengaturan", path: ROUTES.ADMIN.SETTING, icon: <Settings size={20} /> },
   ];
 
+  // Menentukan Judul Tab secara dinamis berdasarkan URL aktif
+  const getPageTitle = () => {
+    const path = location.pathname;
+    let currentMenuName = "Dashboard";
+    
+    if (path.includes("sawah")) currentMenuName = "Data Sawah";
+    else if (path.includes("penyewa")) currentMenuName = "Data Penyewa";
+    else if (path.includes("transaksi")) currentMenuName = "Transaksi Sewa";
+    else if (path.includes("laporan")) currentMenuName = "Laporan Keuangan";
+    else if (path.includes("setting")) currentMenuName = "Pengaturan Aplikasi";
+
+    const appName = setting?.nama_aplikasi || "Sawahku";
+    return `${currentMenuName} - Admin ${appName}`;
+  };
+
   return (
     <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">
+      {/* PENGATURAN META & TITLE ADMIN */}
+      <Helmet>
+        <title>{getPageTitle()}</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
+
       {/* OVERLAY */}
       {isSidebarOpen && (
         <div

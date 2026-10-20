@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { pb } from "../lib/pb";
 import { Printer, AlertCircle } from "lucide-react";
 import NotaCard from "../components/transaksi/NotaCard";
+import useSetting from "../hooks/useSetting";
 
 export default function NotaDetail() {
   const { id } = useParams<{ id: string }>();
+  const { setting } = useSetting();
   const [trx, setTrx] = useState<any>(null);
   const [payList, setPayList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,6 +40,13 @@ export default function NotaDetail() {
     loadNota();
   }, [id]);
 
+  const appName = setting?.nama_aplikasi || "Sawahku";
+  const sawahNama = trx?.expand?.sawah?.nama || "";
+  const penyewaNama = trx?.expand?.penyewa?.nama || "";
+  const pageTitle = sawahNama && penyewaNama 
+    ? `Nota Sewa - ${sawahNama} (${penyewaNama}) - ${appName}` 
+    : `Nota Digital Resmi - ${appName}`;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center text-slate-500 font-medium">
@@ -48,6 +58,10 @@ export default function NotaDetail() {
   if (error || !trx) {
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4 text-center">
+        <Helmet>
+          <title>Nota Tidak Ditemukan - {appName}</title>
+          <meta name="robots" content="noindex, nofollow" />
+        </Helmet>
         <div className="bg-white p-8 rounded-2xl shadow-sm max-w-sm">
           <AlertCircle size={48} className="text-red-500 mx-auto mb-3" />
           <h2 className="text-lg font-bold text-slate-800">
@@ -63,6 +77,13 @@ export default function NotaDetail() {
 
   return (
     <div className="min-h-screen bg-slate-100 py-8 px-4 flex flex-col items-center">
+      {/* PENGATURAN META / HELMET */}
+      <Helmet>
+        <title>{pageTitle}</title>
+        <meta name="description" content={`Nota digital resmi transaksi sewa lahan sawah untuk ${penyewaNama}.`} />
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
+
       {/* BARIS TOMBOL (NO PRINT) */}
       <div className="no-print w-full max-w-lg mb-4 flex justify-between items-center bg-white p-4 rounded-xl shadow-xs">
         <span className="text-xs font-bold text-emerald-700 uppercase">

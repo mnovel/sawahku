@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { ROUTES } from '../routes';
 import { pb } from '../lib/pb';
 import { useAuth } from '../contexts/AuthContext';
@@ -119,8 +120,43 @@ export default function LandingHome() {
   const tersediaCount = list.filter(s => s.status === 'tersedia').length;
   const totalLuas = list.reduce((acc, curr) => acc + (curr.luas_m2 || 0), 0);
 
+  const pageTitle = setting?.nama_aplikasi 
+    ? `${setting.nama_aplikasi} - Sewa Sawah & Lahan Pertanian di Pasuruan` 
+    : "Sewa Sawah di Pasuruan - Sawahku";
+    
+  const pageDescription = setting?.deskripsi || "Cari dan temukan informasi sewa sawah, lahan pertanian, dan tanah produktif di wilayah Pasuruan secara transparan, lengkap dengan luas, harga, dan lokasi digital.";
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
+      {/* PENGATURAN SEO DINAMIS MENGGUNAKAN HELMET */}
+      <Helmet>
+        {/* SEO Utama & Target Lokasi Pasuruan */}
+        <title>{pageTitle}</title>
+        <meta name="description" content={pageDescription} />
+        <meta name="keywords" content="sewa sawah pasuruan, sewa lahan pasuruan, sewa tanah pertanian pasuruan, portal sewa sawah di pasuruan, investasi lahan pasuruan, sewa sawah murah pasuruan" />
+        <meta name="author" content={setting?.nama_pengelola || "Admin Sawahku"} />
+        <meta name="robots" content="index, follow" />
+
+        {/* Open Graph / Facebook & WhatsApp Preview */}
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={pageDescription} />
+        <meta property="og:image" content="/favicon.svg" />
+        <meta property="og:locale" content="id_ID" />
+
+        {/* Twitter Card Preview */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={pageTitle} />
+        <meta name="twitter:description" content={pageDescription} />
+        <meta name="twitter:image" content="/favicon.svg" />
+
+        {/* Geo Tags Khusus SEO Lokal Pasuruan, Jawa Timur */}
+        <meta name="geo.region" content="ID-JI" />
+        <meta name="geo.placename" content="Pasuruan" />
+        <meta name="geo.position" content="-7.6453;112.9075" />
+        <meta name="ICBM" content="-7.6453, 112.9075" />
+      </Helmet>
+
       {/* NAVBAR */}
       <header className="bg-white/85 backdrop-blur-md border-b border-slate-100 sticky top-0 z-40 transition-all">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
@@ -183,11 +219,11 @@ export default function LandingHome() {
           </div>
           
           <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-tight">
-            Transparansi & Manajemen <span className="text-emerald-400 underline decoration-emerald-500/40 decoration-wavy">Aset Lahan Sawah</span>
+            Transparansi & Manajemen <span className="text-emerald-400 underline decoration-emerald-500/40 decoration-wavy">Aset Lahan Sawah di Pasuruan</span>
           </h1>
           
           <p className="text-emerald-100/90 text-base md:text-lg max-w-2xl mx-auto leading-relaxed font-normal">
-            {setting?.deskripsi || "Jelajahi daftar aset lahan sawah secara real-time, periksa status ketersediaan, titik lokasi digital, dan legalitas pertanahan dengan mudah."}
+            {pageDescription}
           </p>
 
           <div className="pt-4 max-w-xl mx-auto">
@@ -225,7 +261,7 @@ export default function LandingHome() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-slate-200 pb-5">
           <div>
             <h2 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
-              Daftar Lahan Sawah
+              Daftar Lahan Sawah di Pasuruan
             </h2>
             <p className="text-sm text-slate-500 mt-1">
               Klik <strong className="text-slate-700">"Lihat Detail"</strong> pada kartu untuk melihat informasi lengkap, status sewa, dan peta digital.
@@ -509,7 +545,7 @@ export default function LandingHome() {
               <span className="font-extrabold text-sm tracking-tight">{setting?.nama_aplikasi || "SAWAHKU"}</span>
             </div>
             <p className="text-slate-400 text-xs leading-relaxed max-w-sm">
-              {setting?.deskripsi || "Portal transparansi manajemen aset lahan sawah profesional dan terintegrasi."}
+              {pageDescription}
             </p>
           </div>
 
