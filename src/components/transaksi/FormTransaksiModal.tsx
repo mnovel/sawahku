@@ -1,4 +1,4 @@
-import { X, CreditCard } from "lucide-react";
+import { X, CreditCard, PenTool } from "lucide-react"; // Tambah ikon PenTool
 
 interface Sawah {
   id: string;
@@ -23,6 +23,8 @@ interface Props {
   onSubmit: (e: React.FormEvent) => void;
   formatRupiah: (val: string | number) => string;
   getTodayString: () => string;
+  onOpenTtd: () => void;
+  ttdPenyewa: string;
 }
 
 export default function FormTransaksiModal({
@@ -36,14 +38,14 @@ export default function FormTransaksiModal({
   onSubmit,
   formatRupiah,
   getTodayString,
+  onOpenTtd, // <-- Tambahan
+  ttdPenyewa, // <-- Tambahan
 }: Props) {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-      {/* Diperbarui agar responsif, max-h dibatasi, dan flex-col agar area form bisa di-scroll jika layar kecil */}
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        
         <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/50 shrink-0">
           <h3 className="text-lg font-bold text-slate-800">
             {editId ? "Edit Transaksi" : "Buat Transaksi Baru"}
@@ -56,8 +58,12 @@ export default function FormTransaksiModal({
           </button>
         </div>
 
-        {/* Bagian form dengan overflow-y-auto agar aman di layar HP */}
-        <form onSubmit={onSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
+        <form
+          onSubmit={onSubmit}
+          className="p-6 space-y-4 overflow-y-auto flex-1"
+        >
+          {/* ... (Bagian form Sawah, Penyewa, Tanggal, Harga, Pembayaran tetap sama) ... */}
+
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
               Pilih Sawah
@@ -112,7 +118,6 @@ export default function FormTransaksiModal({
             </select>
           </div>
 
-          {/* Grid tanggal: 1 kolom di HP, 2 kolom di layar medium ke atas */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -224,6 +229,40 @@ export default function FormTransaksiModal({
               fitur <strong>Kelola Pembayaran</strong> (ikon Dompet) di tabel.
             </div>
           )}
+
+          {/* ======================================================== */}
+          {/* UI TAMBAHAN UNTUK TANDA TANGAN (TTD) */}
+          {/* ======================================================== */}
+          <div className="pt-2">
+            <label className="block text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-2">
+              <PenTool size={16} className="text-emerald-500" /> Tanda Tangan
+              Penyewa
+            </label>
+            {ttdPenyewa ? (
+              <div className="border border-slate-200 rounded-xl p-4 flex flex-col items-center bg-slate-50">
+                <img
+                  src={ttdPenyewa}
+                  alt="TTD"
+                  className="h-16 object-contain mb-2"
+                />
+                <button
+                  type="button"
+                  onClick={onOpenTtd}
+                  className="text-xs text-blue-600 font-bold hover:underline cursor-pointer"
+                >
+                  Gambar Ulang TTD
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenTtd}
+                className="w-full py-3 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 font-medium text-sm hover:bg-slate-50 hover:border-emerald-500 hover:text-emerald-600 transition-colors cursor-pointer"
+              >
+                + Gambar Tanda Tangan Penyewa
+              </button>
+            )}
+          </div>
 
           <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-4 border-t border-slate-100 mt-2">
             <button

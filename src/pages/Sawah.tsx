@@ -547,7 +547,7 @@ export default function Sawah() {
           {/* TAMPILAN TABEL UNTUK DESKTOP / LAYAR BESAR */}
           <div className="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full min-w-[1000px] text-left border-collapse">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
                     <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest w-[40%]">
@@ -570,12 +570,12 @@ export default function Sawah() {
                     return (
                       <tr
                         key={s.id}
-                        className="hover:bg-slate-50/80 transition-colors group"
+                        className="hover:bg-emerald-50/30 transition-colors group"
                       >
                         {/* KOLOM 1: INFORMASI SAWAH & SERTIFIKAT */}
                         <td className="px-6 py-5 align-top">
                           <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0 mt-0.5">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0 mt-0.5">
                               <Sprout className="text-emerald-600" size={20} />
                             </div>
                             <div>
@@ -705,65 +705,70 @@ export default function Sawah() {
                           </div>
                         </td>
 
-                        {/* KOLOM 4: AKSI */}
-                        <td className="px-6 py-5 align-top text-right">
-                          <div className="flex flex-col gap-2 items-end">
+                        {/* KOLOM 4: AKSI (Gaya Transaksi/Penyewa) */}
+                        <td className="px-6 py-5 align-middle text-right">
+                          <div className="flex items-center justify-end gap-1 opacity-70 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                            {/* Kelompok 1: Aksi Utama */}
                             <button
                               onClick={() =>
                                 navigate(ROUTES.ADMIN.TRANSAKSI({ q: s.nama }))
                               }
-                              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                              className="p-2 text-amber-600 bg-amber-50 hover:bg-amber-600 hover:text-white rounded-xl transition-all cursor-pointer shadow-xs"
+                              title="Lihat Transaksi"
                             >
-                              <ClipboardList size={14} /> Transaksi
+                              <ClipboardList size={16} />
                             </button>
 
-                            <div className="flex items-center gap-1.5 w-full">
-                              <button
-                                onClick={async () => {
-                                  setForm({
-                                    nama: s.nama,
-                                    lokasi: s.lokasi,
-                                    harga_sewa: formatRupiah(s.harga_sewa),
-                                    url_maps: s.url_maps || "",
-                                    deskripsi: s.deskripsi || "",
-                                  });
-                                  if (certs.length > 0) {
-                                    setSertifikatList(
-                                      certs.map((c) => ({
-                                        id: c.id,
-                                        tipe_hak: c.tipe_hak,
-                                        nib: c.nib.toString(),
-                                        luas: c.luas.toString(),
-                                        url_maps: c.url_maps || "",
-                                        url_bhumi: c.url_bhumi || "",
-                                      })),
-                                    );
-                                  } else {
-                                    setSertifikatList([
-                                      {
-                                        tipe_hak: "hak milik",
-                                        nib: "",
-                                        luas: "",
-                                        url_maps: "",
-                                        url_bhumi: "",
-                                      },
-                                    ]);
-                                  }
-                                  setEditId(s.id);
-                                  setIsModalOpen(true);
-                                }}
-                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-blue-600 text-slate-700 hover:text-white rounded-lg text-xs font-bold transition-all cursor-pointer"
-                              >
-                                <Pencil size={14} /> Edit
-                              </button>
-                              <button
-                                onClick={() => handleDelete(s.id)}
-                                className="flex items-center justify-center p-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white border border-red-100 rounded-lg transition-all cursor-pointer"
-                                title="Hapus"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
+                            {/* Garis Pemisah */}
+                            <div className="w-[1px] h-5 bg-slate-300 mx-1 shrink-0"></div>
+
+                            {/* Kelompok 2: Aksi Sekunder */}
+                            <button
+                              onClick={async () => {
+                                setForm({
+                                  nama: s.nama,
+                                  lokasi: s.lokasi,
+                                  harga_sewa: formatRupiah(s.harga_sewa),
+                                  url_maps: s.url_maps || "",
+                                  deskripsi: s.deskripsi || "",
+                                });
+                                if (certs.length > 0) {
+                                  setSertifikatList(
+                                    certs.map((c) => ({
+                                      id: c.id,
+                                      tipe_hak: c.tipe_hak,
+                                      nib: c.nib.toString(),
+                                      luas: c.luas.toString(),
+                                      url_maps: c.url_maps || "",
+                                      url_bhumi: c.url_bhumi || "",
+                                    })),
+                                  );
+                                } else {
+                                  setSertifikatList([
+                                    {
+                                      tipe_hak: "hak milik",
+                                      nib: "",
+                                      luas: "",
+                                      url_maps: "",
+                                      url_bhumi: "",
+                                    },
+                                  ]);
+                                }
+                                setEditId(s.id);
+                                setIsModalOpen(true);
+                              }}
+                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+                              title="Edit"
+                            >
+                              <Pencil size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(s.id)}
+                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                              title="Hapus"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </div>
                         </td>
                       </tr>

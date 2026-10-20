@@ -20,6 +20,7 @@ import {
   Calendar,
   Image as ImageIcon,
   Hourglass,
+  ClipboardList, // <-- Tambahan Ikon
 } from "lucide-react";
 
 interface Transaksi {
@@ -150,7 +151,7 @@ export default function Dashboard() {
 
   const [activeTrx, setActiveTrx] = useState<Transaksi[]>([]);
   const [overdueTrx, setOverdueTrx] = useState<Transaksi[]>([]);
-  const [longTermTrx, setLongTermTrx] = useState<Transaksi[]>([]); // State untuk sewa >= 4 bulan
+  const [longTermTrx, setLongTermTrx] = useState<Transaksi[]>([]);
   const [recentLogs, setRecentLogs] = useState<LogBulanan[]>([]);
 
   useEffect(() => {
@@ -196,7 +197,6 @@ export default function Dashboard() {
               expand: "sawah,penyewa",
             });
 
-          // Sorting: Tanggal mulai paling lama (terdahulu) berada di atas
           trxAktif.sort((a, b) => {
             return (
               new Date(a.tanggal_mulai).getTime() -
@@ -212,7 +212,7 @@ export default function Dashboard() {
           (t) => t.status_bayar !== "lunas",
         );
 
-        // 5. Filter Transaksi yang sewanya sudah 4 bulan atau lebih (Durasi terlama di atas)
+        // 5. Filter Transaksi yang sewanya sudah 4 bulan atau lebih
         const filteredLongTerm = trxAktif.filter((t) => {
           const months = calculateMonthCount(t.tanggal_mulai);
           return months >= 4;
@@ -523,7 +523,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* NEW SECTION: SECTION / CARD NOTIFIKASI SEWA >= 4 BULAN DAN BELUM SELESAI */}
+      {/* 4. SECTION / CARD NOTIFIKASI SEWA >= 4 BULAN DAN BELUM SELESAI */}
       {!loading && longTermTrx.length > 0 && (
         <div className="bg-purple-50/90 border border-purple-200 rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
@@ -585,8 +585,9 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* 4. GRID 2 KOLOM: TRANSAKSI AKTIF & FEED JURNAL AKTIVITAS */}
+      {/* 5. GRID 2 KOLOM: TRANSAKSI AKTIF & FEED JURNAL AKTIVITAS */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* TABEL SAWAH SEDANG DISEWA */}
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
           <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
             <div>
@@ -616,54 +617,64 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="overflow-x-auto flex-1">
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-white border-b border-slate-100 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              <table className="w-full min-w-[600px] text-left border-collapse">
+                <thead className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-black text-slate-500 uppercase tracking-widest">
                   <tr>
-                    <th className="px-6 py-3.5">Sawah & Penyewa</th>
-                    <th className="px-6 py-3.5">Tanggal Mulai</th>
-                    <th className="px-6 py-3.5">Durasi</th>
-                    <th className="px-6 py-3.5 text-right">Aksi</th>
+                    <th className="px-6 py-4">Sawah & Penyewa</th>
+                    <th className="px-6 py-4">Tanggal Mulai</th>
+                    <th className="px-6 py-4">Durasi</th>
+                    <th className="px-6 py-4 text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
                   {activeTrx.map((trx) => (
                     <tr
                       key={trx.id}
-                      className="hover:bg-slate-50 transition-colors"
+                      className="hover:bg-emerald-50/30 transition-colors group"
                     >
-                      <td className="px-6 py-4">
-                        <div className="font-semibold text-slate-800 flex items-center gap-2">
-                          <Sprout size={16} className="text-emerald-500" />{" "}
-                          {trx.expand?.sawah?.nama || "Sawah Dihapus"}
-                        </div>
-                        <div className="text-xs text-slate-500 flex items-center gap-2 mt-1">
-                          <Users size={13} />{" "}
-                          {trx.expand?.penyewa?.nama || "Penyewa Dihapus"}
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0">
+                            <Sprout size={16} className="text-emerald-600" />
+                          </div>
+                          <div>
+                            <div className="font-bold text-slate-900 text-sm leading-tight group-hover:text-emerald-700 transition-colors">
+                              {trx.expand?.sawah?.nama || "Sawah Dihapus"}
+                            </div>
+                            <div className="text-xs text-slate-500 flex items-center gap-1.5 mt-1 font-medium">
+                              <Users size={12} className="text-slate-400" />
+                              {trx.expand?.penyewa?.nama || "Penyewa Dihapus"}
+                            </div>
+                          </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-slate-600 font-medium text-xs">
-                        {formatDate(trx.tanggal_mulai)}
+                      <td className="px-6 py-5">
+                        <div className="font-bold text-slate-800 text-sm">
+                          {formatDate(trx.tanggal_mulai)}
+                        </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="text-[11px] text-amber-700 font-bold flex items-center gap-1 bg-amber-50 w-fit px-2.5 py-1 rounded-full border border-amber-200">
-                          <Clock size={13} />
+                      <td className="px-6 py-5">
+                        <div className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200">
+                          <Clock size={12} />
                           {calculateDuration(trx.tanggal_mulai)}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() =>
-                            navigate(
-                              ROUTES.ADMIN.TRANSAKSI({
-                                q: trx.expand?.sawah?.nama || "",
-                              }),
-                            )
-                          }
-                          className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1 text-xs font-semibold"
-                          title="Perpanjang atau kelola"
-                        >
-                          <RotateCw size={14} /> Kelola
-                        </button>
+                      <td className="px-6 py-5 text-right">
+                        <div className="flex items-center justify-end opacity-70 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() =>
+                              navigate(
+                                ROUTES.ADMIN.TRANSAKSI({
+                                  q: trx.expand?.sawah?.nama || "",
+                                }),
+                              )
+                            }
+                            className="p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-600 hover:text-white rounded-xl transition-all cursor-pointer shadow-xs"
+                            title="Kelola Transaksi"
+                          >
+                            <ClipboardList size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -708,7 +719,8 @@ export default function Dashboard() {
                   >
                     {log.foto ? (
                       <img
-                        src={pb.files.getUrl(log, log.foto)}
+                        // FIX WARNING: pb.files.getUrl -> pb.files.getURL
+                        src={pb.files.getURL(log, log.foto)}
                         alt="Foto Aktivitas"
                         className="w-12 h-12 rounded-lg object-cover border border-slate-200 shrink-0"
                       />

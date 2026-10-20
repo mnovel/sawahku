@@ -32,6 +32,7 @@ import FormTransaksiModal from "../components/transaksi/FormTransaksiModal";
 import PembayaranModal from "../components/transaksi/PembayaranModal";
 import LogBulananModal from "../components/transaksi/LogBulananModal";
 import NotaPreviewModal from "../components/transaksi/NotaPreviewModal";
+import TandaTanganModal from "../components/transaksi/TandaTanganModal";
 
 interface Sawah {
   id: string;
@@ -215,6 +216,9 @@ export default function Transaksi() {
     keterangan: "",
   });
 
+  const [isTtdModalOpen, setIsTtdModalOpen] = useState(false);
+  const [ttdPenyewa, setTtdPenyewa] = useState<string>("");
+
   useEffect(() => {
     const q = searchParams.get("q");
     const bayar = searchParams.get("bayar");
@@ -361,10 +365,33 @@ export default function Transaksi() {
     const cleanHarga = Number(form.harga_sewa.replace(/\./g, ""));
     const cleanDibayar = Number(form.nominal_dibayar.replace(/\./g, ""));
 
+    if (!form.sawah || !form.penyewa) {
+      return toast("Sawah dan Penyewa wajib dipilih.", "warning");
+    }
+
     try {
+      // 1. Siapkan Payload Dasar
+      const payload: any = {
+        sawah: form.sawah,
+        penyewa: form.penyewa,
+        tanggal_mulai: form.tanggal_mulai,
+        harga_sewa: cleanHarga,
+      };
+
+      // 2. Hanya kirim tanggal_jatuh_tempo jika ADA isinya (mencegah error format Date)
+      if (form.tanggal_jatuh_tempo) {
+        payload.tanggal_jatuh_tempo = form.tanggal_jatuh_tempo;
+      }
+
+      // 3. Hanya masukkan TTD jika ada isinya
+      if (ttdPenyewa) {
+        payload.ttd_penyewa = ttdPenyewa;
+      }
+
       if (editId) {
         const oldTrx = list.find((t) => t.id === editId);
         const oldSawahId = oldTrx?.expand?.sawah?.id;
+
         let newStatusBayar = oldTrx?.status_bayar;
         if (oldTrx && oldTrx.harga_sewa !== cleanHarga) {
           if (oldTrx.nominal_dibayar >= cleanHarga) newStatusBayar = "lunas";
@@ -373,13 +400,10 @@ export default function Transaksi() {
         }
 
         await pb.collection("transaksi_sewa").update(editId, {
-          sawah: form.sawah,
-          penyewa: form.penyewa,
-          tanggal_mulai: form.tanggal_mulai,
-          tanggal_jatuh_tempo: form.tanggal_jatuh_tempo,
-          harga_sewa: cleanHarga,
+          ...payload,
           status_bayar: newStatusBayar,
         });
+
         if (oldTrx?.status === "aktif" && oldSawahId !== form.sawah) {
           await pb
             .collection("sawah")
@@ -388,17 +412,16 @@ export default function Transaksi() {
         }
         toast("Transaksi diperbarui!", "success");
       } else {
+        // 4. Buat Record Baru
         const newTrx = await pb.collection("transaksi_sewa").create({
-          sawah: form.sawah,
-          penyewa: form.penyewa,
-          tanggal_mulai: form.tanggal_mulai,
-          tanggal_jatuh_tempo: form.tanggal_jatuh_tempo,
-          harga_sewa: cleanHarga,
+          ...payload,
           status: "aktif",
           status_bayar: form.status_bayar,
           nominal_dibayar: cleanDibayar,
         });
+
         await pb.collection("sawah").update(form.sawah, { status: "disewa" });
+
         if (cleanDibayar > 0) {
           await pb.collection("riwayat_bayar").create({
             transaksi: newTrx.id,
@@ -412,10 +435,23 @@ export default function Transaksi() {
         }
         toast("Transaksi sewa baru dibuat!", "success");
       }
+
       setIsModalOpen(false);
+      setTtdPenyewa(""); // Reset TTD
       loadData();
-    } catch (err) {
-      toast("Gagal menyimpan transaksi.", "error");
+    } catch (err: any) {
+      // --- PERBAIKAN ERROR HANDLING ---
+      console.error("PocketBase Error Data:", err?.response?.data || err);
+
+      let errorMessage = "Gagal menyimpan transaksi.";
+      if (err?.response?.data) {
+        // Menampilkan field mana yang bermasalah beserta pesan errornya
+        const errorDetails = Object.entries(err.response.data)
+          .map(([key, val]: any) => `${key}: ${val.message}`)
+          .join(", ");
+        errorMessage += ` (${errorDetails})`;
+      }
+      toast(errorMessage, "error");
     }
   }
 
@@ -1160,7 +1196,7 @@ export default function Transaksi() {
                               </button>
                               <button
                                 onClick={() => openEditModal(trx)}
-                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+                                className="p-2 text-amber-600 hover:bg-amber-50 rounded-xl transition-all cursor-pointer"
                                 title="Edit"
                               >
                                 <Pencil size={16} />
@@ -1267,6 +1303,8 @@ export default function Transaksi() {
         onSubmit={handleSaveTrx}
         formatRupiah={formatRupiah}
         getTodayString={getTodayString}
+        onOpenTtd={() => setIsTtdModalOpen(true)}
+        ttdPenyewa={ttdPenyewa}
       />
 
       <PembayaranModal
@@ -1307,6 +1345,12 @@ export default function Transaksi() {
           );
           toast("Link nota dicopy!", "success");
         }}
+      />
+
+      <TandaTanganModal
+        isOpen={isTtdModalOpen}
+        onClose={() => setIsTtdModalOpen(false)}
+        onSave={(base64) => setTtdPenyewa(base64)}
       />
     </div>
   );

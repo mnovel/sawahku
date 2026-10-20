@@ -300,70 +300,111 @@ export default function Penyewa() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-slate-50 border-b border-slate-200">
+            <table className="w-full min-w-[800px] text-left border-collapse">
+              <thead className="bg-slate-50/80 border-b border-slate-200">
                 <tr>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">
                     Nama Penyewa
                   </th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">
                     Kontak (HP)
                   </th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">
                     Alamat
                   </th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">
                     Status
                   </th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">
+                  <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest text-right">
                     Aksi
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 text-sm">
                 {currentItems.map((p) => (
                   <tr
                     key={p.id}
-                    className="hover:bg-slate-50/80 transition-colors"
+                    className="hover:bg-emerald-50/30 transition-colors group"
                   >
-                    <td className="px-6 py-4 font-semibold text-slate-800">
-                      {p.nama}
+                    {/* KOLOM 1: NAMA */}
+                    <td className="px-6 py-5 align-top whitespace-nowrap">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0">
+                          <User size={16} className="text-emerald-600" />
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-900 text-base leading-tight group-hover:text-emerald-700 transition-colors">
+                            {p.nama}
+                          </div>
+                        </div>
+                      </div>
                     </td>
-                    <td className="px-6 py-4 text-slate-600">
-                      {p.kontak || "-"}
+
+                    {/* KOLOM 2: KONTAK */}
+                    <td className="px-6 py-5 align-top whitespace-nowrap">
+                      <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                        <Phone size={14} className="text-slate-400" />
+                        {p.kontak || "-"}
+                      </div>
                     </td>
-                    <td className="px-6 py-4 text-slate-600">
-                      {p.alamat || "-"}
+
+                    {/* KOLOM 3: ALAMAT */}
+                    <td className="px-6 py-5 align-top">
+                      <div className="flex items-start gap-1.5 text-sm text-slate-600 max-w-[250px]">
+                        <MapPin
+                          size={16}
+                          className="text-slate-400 shrink-0 mt-0.5"
+                        />
+                        <span className="line-clamp-2">{p.alamat || "-"}</span>
+                      </div>
                     </td>
-                    <td className="px-6 py-4">
+
+                    {/* KOLOM 4: STATUS */}
+                    <td className="px-6 py-5 align-top">
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium border ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border ${
                           p.status === "aktif"
                             ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                            : "bg-slate-100 text-slate-500 border-slate-200"
+                            : "bg-slate-100 text-slate-600 border-slate-300"
                         }`}
                       >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            p.status === "aktif"
+                              ? "bg-emerald-500 animate-pulse"
+                              : "bg-slate-400"
+                          }`}
+                        ></span>
                         {p.status === "aktif" ? "Aktif" : "Non-Aktif"}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
+
+                    {/* KOLOM 5: AKSI (Gaya Transaksi.tsx) */}
+                    <td className="px-6 py-5 align-middle text-right">
+                      <div className="flex items-center justify-end gap-1 opacity-70 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                        {/* Kelompok 1: Aksi Utama */}
                         <button
                           onClick={() =>
                             navigate(ROUTES.ADMIN.TRANSAKSI({ penyewa: p.id }))
                           }
-                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                          className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white rounded-xl transition-all cursor-pointer shadow-xs"
                           title="Lihat Transaksi Penyewa"
                         >
-                          <ClipboardList size={18} />
+                          <ClipboardList size={16} />
                         </button>
+
                         <button
                           onClick={() => openDetailModal(p)}
-                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                          className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-600 hover:text-white rounded-xl transition-all cursor-pointer shadow-xs"
                           title="Lihat Profil & Kredibilitas"
                         >
-                          <Eye size={18} />
+                          <Eye size={16} />
                         </button>
+
+                        {/* Garis Pemisah */}
+                        <div className="w-[1px] h-5 bg-slate-300 mx-1 shrink-0"></div>
+
+                        {/* Kelompok 2: Aksi Sekunder */}
                         <button
                           onClick={() => {
                             setForm({
@@ -375,22 +416,24 @@ export default function Penyewa() {
                             setEditId(p.id);
                             setIsModalOpen(true);
                           }}
-                          className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
+                          className="p-2 text-amber-600 hover:bg-amber-50 rounded-xl transition-all cursor-pointer"
                           title="Edit"
                         >
-                          <Pencil size={18} />
+                          <Pencil size={16} />
                         </button>
+
                         <button
                           onClick={() => handleDelete(p.id)}
-                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
                           title="Hapus"
                         >
-                          <Trash2 size={18} />
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </td>
                   </tr>
                 ))}
+
                 {currentItems.length === 0 && (
                   <tr>
                     <td

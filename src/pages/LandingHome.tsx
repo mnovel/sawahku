@@ -21,6 +21,7 @@ import {
   Award,
   BadgeCheck,
   ArrowUp,
+  Maximize2,
 } from "lucide-react";
 
 interface SertifikatType {
@@ -69,6 +70,9 @@ export default function LandingHome() {
   const [loadingModal, setLoadingModal] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
+  // State untuk Modal Fullscreen Peta
+  const [mapPreview, setMapPreview] = useState<string | null>(null);
+
   useEffect(() => {
     async function loadPublicSawah() {
       try {
@@ -93,12 +97,25 @@ export default function LandingHome() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // KUNCI SCROLL BODY SAAT MODAL TERBUKA
+  useEffect(() => {
+    if (selectedSawah || mapPreview) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+
+    // Cleanup function
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [selectedSawah, mapPreview]);
+
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   async function handleOpenDetail(sawah: SawahType) {
-    window.scrollTo({ top: 0, behavior: "smooth" });
     setSelectedSawah(sawah);
     setLoadingModal(true);
     setTransaksiAktif(null);
@@ -121,6 +138,7 @@ export default function LandingHome() {
   function closeModal() {
     setSelectedSawah(null);
     setTransaksiAktif(null);
+    setMapPreview(null);
   }
 
   function formatTanggalIndo(dateString: string) {
@@ -193,12 +211,10 @@ export default function LandingHome() {
   const currentDomain = setting?.domain || "https://sawahku.com";
   const pageUrl = currentDomain;
 
-  // AMBIL LOGO DARI POCKETBASE
   const logoUrl = setting?.logo
     ? pb.files.getURL(setting as any, setting.logo)
-    : "/favicon.svg"; // Fallback jika belum ada logo di DB
+    : "/favicon.svg";
 
-  // SEO OG IMAGE: Gunakan absolute URL dari PocketBase atau fallback ke logo lokal
   const pageOgImage = setting?.logo
     ? pb.files.getURL(setting as any, setting.logo)
     : `${currentDomain}/favicon.svg`;
@@ -214,7 +230,6 @@ export default function LandingHome() {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="canonical" href={pageUrl} />
 
-        {/* Open Graph / WhatsApp / Social Media */}
         <meta property="og:type" content="website" />
         <meta property="og:url" content={pageUrl} />
         <meta property="og:title" content={pageTitle} />
@@ -226,19 +241,16 @@ export default function LandingHome() {
         <meta property="og:locale" content="id_ID" />
         {pageOgImage && <meta property="og:image" content={pageOgImage} />}
 
-        {/* Twitter Cards */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={pageTitle} />
         <meta name="twitter:description" content={pageDescription} />
         {pageOgImage && <meta name="twitter:image" content={pageOgImage} />}
 
-        {/* Geo Local SEO Pasuruan */}
         <meta name="geo.region" content="ID-JI" />
         <meta name="geo.placename" content="Pasuruan" />
         <meta name="geo.position" content="-7.6583;112.9261" />
         <meta name="ICBM" content="-7.6583, 112.9261" />
 
-        {/* Structured Data JSON-LD */}
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "http://schema.org",
@@ -570,7 +582,7 @@ export default function LandingHome() {
         onClick={scrollToTop}
         aria-label="Kembali ke atas"
         className={`fixed bottom-6 right-6 z-30 inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/30 transition-all duration-300 cursor-pointer active:scale-95 ${
-          showScrollTop && !selectedSawah
+          showScrollTop && !selectedSawah && !mapPreview
             ? "opacity-100 translate-y-0 pointer-events-auto"
             : "opacity-0 translate-y-4 pointer-events-none"
         }`}
@@ -611,7 +623,7 @@ export default function LandingHome() {
               </button>
             </div>
 
-            <div className="p-8 overflow-y-auto space-y-8 flex-1 custom-scrollbar">
+            <div className="p-8 overflow-y-auto space-y-8 flex-1 custom-scrollbar overscroll-contain">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="bg-slate-50 rounded-3xl p-5 border border-slate-100 flex flex-col justify-between">
                   <div>
@@ -672,6 +684,7 @@ export default function LandingHome() {
                   </div>
                 </div>
               )}
+
               {/* BAGIAN SERTIFIKAT */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between px-1">
@@ -750,13 +763,32 @@ export default function LandingHome() {
                 </div>
               </div>
 
-              {/* Peta Iframe */}
+              {/* Peta Iframe Preview */}
               <div className="space-y-4">
-                <h4 className="font-black text-slate-900 text-xs uppercase tracking-widest flex items-center gap-2 px-1">
-                  <div className="w-1.5 h-4 bg-rose-500 rounded-full"></div>
-                  Visualisasi Lokasi
-                </h4>
-                <div className="w-full h-64 rounded-[2.5rem] overflow-hidden border-4 border-slate-50 shadow-inner bg-slate-100 relative group">
+                <div className="flex items-center justify-between px-1">
+                  <h4 className="font-black text-slate-900 text-xs uppercase tracking-widest flex items-center gap-2">
+                    <div className="w-1.5 h-4 bg-rose-500 rounded-full"></div>
+                    Visualisasi Lokasi
+                  </h4>
+                  <button
+                    onClick={() => setMapPreview(getEmbedMapUrl(selectedSawah))}
+                    className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 hover:bg-emerald-100 transition-colors flex items-center gap-1 cursor-pointer"
+                  >
+                    <Maximize2 size={12} /> Perbesar
+                  </button>
+                </div>
+
+                <div
+                  onClick={() => setMapPreview(getEmbedMapUrl(selectedSawah))}
+                  className="w-full h-64 rounded-[2.5rem] overflow-hidden border-4 border-slate-50 shadow-inner bg-slate-100 relative group cursor-pointer"
+                >
+                  <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/20 transition-colors z-10 flex items-center justify-center">
+                    <div className="bg-white/90 backdrop-blur-md px-4 py-2 rounded-xl shadow-lg opacity-0 group-hover:opacity-100 transition-all font-bold text-xs text-slate-800 flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0">
+                      <Maximize2 size={14} className="text-emerald-600" /> Klik
+                      untuk memperbesar
+                    </div>
+                  </div>
+
                   <iframe
                     title={`Peta Lokasi ${selectedSawah.nama}`}
                     src={getEmbedMapUrl(selectedSawah)}
@@ -766,7 +798,7 @@ export default function LandingHome() {
                     allowFullScreen={false}
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
-                    className="grayscale-[20%] contrast-[110%] group-hover:grayscale-0 transition-all duration-700"
+                    className="grayscale-[20%] contrast-[110%] group-hover:grayscale-0 transition-all duration-700 pointer-events-none"
                   ></iframe>
                 </div>
               </div>
@@ -842,6 +874,41 @@ export default function LandingHome() {
                   Tutup
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PETA FULLSCREEN */}
+      {mapPreview && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-2 sm:p-6 bg-slate-900/90 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col h-[90vh] sm:h-[85vh] border border-slate-200 animate-in zoom-in-95 duration-300">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-white">
+              <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                <MapPin className="text-emerald-500" /> Peta Lokasi:{" "}
+                {selectedSawah?.nama}
+              </h3>
+              <button
+                onClick={() => setMapPreview(null)}
+                className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all cursor-pointer group"
+              >
+                <X
+                  size={24}
+                  className="group-hover:rotate-90 transition-transform duration-300"
+                />
+              </button>
+            </div>
+            <div className="flex-1 bg-slate-100 relative">
+              <iframe
+                src={mapPreview}
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                title="Peta Lokasi Diperbesar"
+              ></iframe>
             </div>
           </div>
         </div>

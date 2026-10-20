@@ -39,38 +39,48 @@ export default function NotaPreviewModal({
   if (!notaTrx) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-sm overflow-hidden">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden my-auto border border-slate-200">
-        {/* HEADER / ACTION BAR (Tetap di atas, tidak ter-scroll) */}
-        <div className="px-5 py-3.5 border-b border-slate-200 bg-slate-50 flex justify-between items-center no-print shrink-0 z-10">
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-slate-900/70 backdrop-blur-sm overflow-hidden 
+      print:static print:bg-white print:backdrop-blur-none print:p-0 print:overflow-visible print:block"
+    >
+      <div
+        className="bg-slate-100 rounded-2xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden border border-slate-300 
+        print:h-auto print:max-w-full print:border-none print:shadow-none print:bg-white print:overflow-visible print:block print:rounded-none"
+      >
+        <div className="px-4 py-3 border-b border-slate-200 bg-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shrink-0 z-10 print:hidden">
           <span className="font-bold text-slate-800 text-sm">
             Pratinjau Nota Digital
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             <button
               onClick={onCopyLink}
-              className="flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
             >
               <Copy size={14} /> Salin Link
             </button>
             <button
               onClick={() => window.print()}
-              className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer shadow-sm transition-colors"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 sm:py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer"
             >
               <Printer size={14} /> Cetak Nota
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer transition-colors"
+              className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
             >
               <X size={18} />
             </button>
           </div>
         </div>
 
-        {/* AREA SCROLL KONTEN NOTA */}
-        <div className="flex-1 overflow-y-auto bg-slate-100/70 p-4 sm:p-6 flex justify-center items-start">
-          <div className="w-full max-w-lg flex justify-center">
+        <div
+          className="flex-1 overflow-auto bg-slate-200/70 p-4 sm:p-8 flex justify-start md:justify-center items-start min-w-0 
+          print:overflow-visible print:h-auto print:p-0 print:bg-white print:block print:m-0"
+        >
+          <div
+            className="w-[210mm] shrink-0 flex justify-center 
+            print:w-full print:block print:shrink print:m-0 print:p-0"
+          >
             <NotaCard trx={notaTrx} payList={payList} />
           </div>
         </div>
