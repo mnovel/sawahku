@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { pb } from "../lib/pb";
 import { useNotify } from "../contexts/NotificationContext";
 import { useSearchParams } from "react-router-dom";
+import { ROUTES } from "../routes";
 import {
   Plus,
   ClipboardList,
@@ -296,7 +297,7 @@ export default function Transaksi() {
     const jatuhTempo = trx.tanggal_jatuh_tempo
       ? formatDate(trx.tanggal_jatuh_tempo)
       : "-";
-    const linkNota = `${window.location.origin}/nota/${trx.id}`;
+    const linkNota = `${window.location.origin}${ROUTES.NOTA_DETAIL(trx.id)}`;
 
     if (!kontak)
       return toast(
@@ -1061,7 +1062,7 @@ export default function Transaksi() {
         onClose={() => setNotaTrx(null)}
         onCopyLink={() => {
           navigator.clipboard.writeText(
-            `${window.location.origin}/nota/${notaTrx?.id}`,
+            `${window.location.origin}${ROUTES.NOTA_DETAIL(notaTrx?.id || "")}`,
           );
           toast("Link nota dicopy!", "success");
         }}

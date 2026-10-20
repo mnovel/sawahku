@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ROUTES } from "../routes";
 import { pb } from "../lib/pb";
 import { useNotify } from "../contexts/NotificationContext";
 import {
@@ -55,7 +56,7 @@ const formatDate = (dateStr: string) => {
 
 export default function Penyewa() {
   const { toast, confirm } = useNotify();
-  const navigate = useNavigate(); // <-- Dipertahankan agar tidak error unused dan bisa navigasi
+  const navigate = useNavigate();
 
   const [list, setList] = useState<PenyewaType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -297,7 +298,7 @@ export default function Penyewa() {
                       <div className="flex items-center justify-end gap-1">
                         {/* TOMBOL MENUJU HALAMAN TRANSAKSI SESUAI PENYEWA */}
                         <button
-                          onClick={() => navigate(`/transaksi?penyewa=${p.id}`)}
+                          onClick={() => navigate(ROUTES.ADMIN.TRANSAKSI({ penyewa: p.id }))}
                           className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                           title="Lihat Transaksi Penyewa"
                         >

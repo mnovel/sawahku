@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
+import { ROUTES } from "../routes";
 import { useAuth } from "../contexts/AuthContext";
 import {
   LayoutDashboard,
@@ -20,21 +21,22 @@ export default function DashboardLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { setting } = useSetting();
 
+  // Menggunakan konstanta ROUTES yang terpusat agar konsisten
   const menu = [
     {
       name: "Dashboard",
-      path: "/dashboard",
+      path: ROUTES.ADMIN.DASHBOARD,
       icon: <LayoutDashboard size={20} />,
     },
-    { name: "Data Sawah", path: "/sawah", icon: <Sprout size={20} /> },
-    { name: "Data Penyewa", path: "/penyewa", icon: <Users size={20} /> },
+    { name: "Data Sawah", path: ROUTES.ADMIN.SAWAH, icon: <Sprout size={20} /> },
+    { name: "Data Penyewa", path: ROUTES.ADMIN.PENYEWA, icon: <Users size={20} /> },
     {
       name: "Transaksi Sewa",
-      path: "/transaksi",
+      path: ROUTES.ADMIN.TRANSAKSI(),
       icon: <ClipboardList size={20} />,
     },
-    { name: "Laporan", path: "/laporan", icon: <FileText size={20} /> },
-    { name: "Pengaturan", path: "/setting", icon: <Settings size={20} /> },
+    { name: "Laporan", path: ROUTES.ADMIN.LAPORAN, icon: <FileText size={20} /> },
+    { name: "Pengaturan", path: ROUTES.ADMIN.SETTING, icon: <Settings size={20} /> },
   ];
 
   return (
@@ -55,7 +57,6 @@ export default function DashboardLayout() {
       >
         <div className="p-6 flex justify-between items-center text-xl font-bold text-white border-b border-slate-800">
           <div className="flex items-center gap-3 truncate">
-            {/* Menggunakan File SVG sebagai Ikon Utama di Header Sidebar */}
             <img
               src="/favicon.svg"
               alt="Logo Sawahku"
@@ -67,7 +68,7 @@ export default function DashboardLayout() {
           </div>
           <button
             onClick={() => setIsSidebarOpen(false)}
-            className="md:hidden text-slate-400 hover:text-white"
+            className="md:hidden text-slate-400 hover:text-white cursor-pointer"
           >
             <X size={24} />
           </button>
@@ -75,7 +76,7 @@ export default function DashboardLayout() {
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {menu.map((item) => {
-            const isActive = location.pathname.startsWith(item.path);
+            const isActive = location.pathname === item.path;
             return (
               <Link
                 key={item.path}
@@ -87,7 +88,6 @@ export default function DashboardLayout() {
                     : "text-slate-300 hover:bg-slate-800 hover:text-white"
                 }`}
               >
-                {/* Membungkus ikon agar warnanya ikut menyesuaikan status aktif */}
                 <span
                   className={isActive ? "text-emerald-400" : "text-slate-400"}
                 >
@@ -131,7 +131,7 @@ export default function DashboardLayout() {
               <Menu size={24} />
             </button>
             <h2 className="text-xl font-bold text-slate-800 capitalize">
-              {location.pathname.replace("/", "") || "Dashboard"}
+              {location.pathname.replace("/admin/", "").replace("/", " ") || "Dashboard"}
             </h2>
           </div>
         </header>

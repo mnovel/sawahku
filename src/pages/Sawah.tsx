@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ROUTES } from "../routes";
 import { pb } from "../lib/pb";
 import { useNotify } from "../contexts/NotificationContext";
 import {
@@ -29,6 +30,8 @@ interface SawahType {
   tipe_hak?: string;
   nib?: string;
   maps?: string;
+  maps_url?: string;
+  maps_iframe?: string;
   bhumi?: string;
 }
 
@@ -45,7 +48,7 @@ export default function Sawah() {
   const [list, setList] = useState<SawahType[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // State Form dengan field tambahan
+  // State Form dengan field maps_url dan maps_iframe terpisah
   const [form, setForm] = useState({
     nama: "",
     luas_m2: "",
@@ -54,6 +57,8 @@ export default function Sawah() {
     tipe_hak: "hak milik",
     nib: "",
     maps: "",
+    maps_url: "",
+    maps_iframe: "",
     bhumi: "",
   });
 
@@ -111,6 +116,8 @@ export default function Sawah() {
         tipe_hak: "hak milik",
         nib: "",
         maps: "",
+        maps_url: "",
+        maps_iframe: "",
         bhumi: "",
       });
       setEditId(null);
@@ -187,6 +194,8 @@ export default function Sawah() {
               tipe_hak: "hak milik",
               nib: "",
               maps: "",
+              maps_url: "",
+              maps_iframe: "",
               bhumi: "",
             });
             setEditId(null);
@@ -273,12 +282,12 @@ export default function Sawah() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         {/* Tombol Maps */}
-                        {s.maps ? (
+                        {(s.maps_url || s.maps) ? (
                           <a
                             href={
-                              s.maps.includes("http")
-                                ? s.maps
-                                : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.maps)}`
+                              (s.maps_url || s.maps)?.includes("http")
+                                ? (s.maps_url || s.maps)
+                                : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.maps_url || s.maps || '')}`
                             }
                             target="_blank"
                             rel="noopener noreferrer"
@@ -322,7 +331,7 @@ export default function Sawah() {
                         <button
                           onClick={() =>
                             navigate(
-                              `/transaksi?q=${encodeURIComponent(s.nama)}`,
+                              ROUTES.ADMIN.TRANSAKSI({ q: s.nama }),
                             )
                           }
                           className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
@@ -340,6 +349,8 @@ export default function Sawah() {
                               tipe_hak: s.tipe_hak || "hak milik",
                               nib: s.nib || "",
                               maps: s.maps || "",
+                              maps_url: s.maps_url || "",
+                              maps_iframe: s.maps_iframe || "",
                               bhumi: s.bhumi || "",
                             });
                             setEditId(s.id);
@@ -572,18 +583,33 @@ export default function Sawah() {
                 </div>
               </div>
 
+              {/* INPUT PETA TERPISAH: maps_url dan maps_iframe */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Link / Embed Google Maps
+                    Link Shortcut Maps (<code className="text-xs text-emerald-600">maps_url</code>)
                   </label>
                   <input
-                    placeholder="https://goo.gl/maps/... atau iframe"
-                    value={form.maps}
-                    onChange={(e) => setForm({ ...form, maps: e.target.value })}
+                    placeholder="https://maps.app.goo.gl/..."
+                    value={form.maps_url}
+                    onChange={(e) => setForm({ ...form, maps_url: e.target.value })}
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Kode Embed Iframe Maps (<code className="text-xs text-emerald-600">maps_iframe</code>)
+                  </label>
+                  <input
+                    placeholder='<iframe src="https://..."></iframe>'
+                    value={form.maps_iframe}
+                    onChange={(e) => setForm({ ...form, maps_iframe: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
                     Shortlink Bhumi ATR/BPN

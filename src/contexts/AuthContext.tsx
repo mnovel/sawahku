@@ -15,13 +15,11 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Gunakan 'unknown' terlebih dahulu sebelum di-cast ke 'User' agar TypeScript tidak protes
   const [user, setUser] = useState<User | null>(
     pb.authStore.model as unknown as User,
   );
 
   useEffect(() => {
-    // Ubah 'token' menjadi '_token' agar tidak error unused variable
     return pb.authStore.onChange((_token, model) => {
       setUser(model as unknown as User);
     });
@@ -38,7 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
+};
 
 export const useAuth = () => {
   const context = useContext(AuthContext);

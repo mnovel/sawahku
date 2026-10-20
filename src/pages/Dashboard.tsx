@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ROUTES } from "../routes";
 import { pb } from "../lib/pb";
 import { useNotify } from "../contexts/NotificationContext";
 import {
@@ -140,25 +141,40 @@ export default function Dashboard() {
         const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
         // 1. Data Sawah & Okupansi
-        const sawahList = await pb.collection("sawah").getFullList();
+        let sawahList: any[] = [];
+        try {
+          sawahList = await pb.collection("sawah").getFullList();
+        } catch (e) {
+          console.error("Gagal memuat data sawah:", e);
+        }
         const totalSawah = sawahList.length;
         const sawahTersewa = sawahList.filter(
           (s: any) => s.status === "disewa",
         ).length;
 
         // 2. Data Penyewa
-        const penyewaCount = await pb
-          .collection("penyewa")
-          .getList(1, 1, { filter: 'status="aktif"' });
+        let penyewaCount = { totalItems: 0 };
+        try {
+          penyewaCount = await pb
+            .collection("penyewa")
+            .getList(1, 1, { filter: 'status="aktif"' });
+        } catch (e) {
+          console.error("Gagal memuat data penyewa:", e);
+        }
 
         // 3. Transaksi Sewa Aktif
-        const trxAktif = await pb
-          .collection("transaksi_sewa")
-          .getFullList<Transaksi>({
-            filter: 'status="aktif"',
-            expand: "sawah,penyewa",
-            sort: "-created",
-          });
+        let trxAktif: Transaksi[] = [];
+        try {
+          trxAktif = await pb
+            .collection("transaksi_sewa")
+            .getFullList<Transaksi>({
+              filter: 'status="aktif"',
+              expand: "sawah,penyewa",
+              sort: "-created",
+            });
+        } catch (e) {
+          console.error("Gagal memuat transaksi sewa:", e);
+        }
 
         // 4. Tagihan Menunggak / Belum Lunas
         const tagihanMenunggak = trxAktif.filter(
@@ -193,15 +209,15 @@ export default function Dashboard() {
         // 7. Feed Aktivitas Terbaru (Log Bulanan)
         let logs: LogBulanan[] = [];
         try {
-          logs = await pb
+          const resLogs = await pb
             .collection("log_bulanan")
             .getList<LogBulanan>(1, 4, {
               sort: "-created",
               expand: "transaksi.sawah,transaksi.penyewa",
-            })
-            .then((res) => res.items);
+            });
+          logs = resLogs.items;
         } catch (err) {
-          console.error(err);
+          console.error("Gagal memuat log bulanan:", err);
         }
 
         setStats({
@@ -217,7 +233,7 @@ export default function Dashboard() {
         setOverdueTrx(tagihanMenunggak);
         setRecentLogs(logs);
       } catch (err) {
-        console.error(err);
+        console.error("Error umum dashboard:", err);
       } finally {
         setLoading(false);
       }
@@ -233,7 +249,7 @@ export default function Dashboard() {
     const jatuhTempo = trx.tanggal_jatuh_tempo
       ? formatDate(trx.tanggal_jatuh_tempo)
       : "-";
-    const linkNota = `${window.location.origin}/nota/${trx.id}`;
+    const linkNota = `${window.location.origin}${ROUTES.NOTA_DETAIL(trx.id)}`;
 
     if (!kontak) {
       toast("Nomor kontak penyewa belum diisi pada data Penyewa!", "warning");
@@ -344,7 +360,6 @@ export default function Dashboard() {
 
       {/* 2. PENDAPATAN & ARUS KAS NYATA */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* KARTU PENDAPATAN (POTENSI & REALISASI) */}
         <div className="lg:col-span-2 bg-gradient-to-r from-emerald-700 to-emerald-900 rounded-2xl p-6 sm:p-8 shadow-sm text-white flex flex-col justify-between relative overflow-hidden">
           <Banknote
             size={140}
@@ -376,7 +391,7 @@ export default function Dashboard() {
               Data diperbarui secara real-time berdasarkan riwayat setoran.
             </span>
             <button
-              onClick={() => navigate("/laporan")}
+              onClick={() => navigate(ROUTES.ADMIN.LAPORAN)}
               className="hover:text-white font-semibold flex items-center gap-1 underline cursor-pointer"
             >
               Buka Laporan
@@ -390,13 +405,13 @@ export default function Dashboard() {
             Aksi Cepat
           </h4>
           <button
-            onClick={() => navigate("/transaksi")}
+            onClick={() => navigate(ROUTES.ADMIN.TRANSAKSI())}
             className="flex items-center gap-2 w-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-4 py-3 rounded-xl font-medium transition-colors border border-emerald-100 cursor-pointer"
           >
             <Plus size={18} /> Buat Transaksi Baru
           </button>
           <button
-            onClick={() => navigate("/laporan")}
+            onClick={() => navigate(ROUTES.ADMIN.LAPORAN)}
             className="flex items-center gap-2 w-full bg-slate-50 text-slate-700 hover:bg-slate-100 px-4 py-3 rounded-xl font-medium transition-colors border border-slate-200 cursor-pointer"
           >
             <FileText size={18} /> Lihat Laporan Keuangan
@@ -413,7 +428,7 @@ export default function Dashboard() {
               <h3>Peringatan Tagihan & Jatuh Tempo ({overdueTrx.length})</h3>
             </div>
             <button
-              onClick={() => navigate("/transaksi?bayar=menunggak")}
+              onClick={() => navigate(ROUTES.ADMIN.TRANSAKSI({ bayar: "menunggak" }))}
               className="text-xs font-semibold text-amber-800 hover:underline flex items-center gap-1 cursor-pointer"
             >
               Kelola Semua <ArrowRight size={14} />
@@ -469,7 +484,6 @@ export default function Dashboard() {
 
       {/* 4. GRID 2 KOLOM: TRANSAKSI AKTIF & FEED JURNAL AKTIVITAS */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* KOLOM KIRI (2 SPAN): DAFTAR SEWA AKTIF */}
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
           <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
             <div>
@@ -479,7 +493,7 @@ export default function Dashboard() {
               </p>
             </div>
             <button
-              onClick={() => navigate("/transaksi")}
+              onClick={() => navigate(ROUTES.ADMIN.TRANSAKSI())}
               className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 bg-emerald-50 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
             >
               Lihat Semua <ArrowRight size={14} />
@@ -537,7 +551,7 @@ export default function Dashboard() {
                         <button
                           onClick={() =>
                             navigate(
-                              `/transaksi?q=${encodeURIComponent(trx.expand?.sawah?.nama || "")}`,
+                              ROUTES.ADMIN.TRANSAKSI({ q: trx.expand?.sawah?.nama || "" }),
                             )
                           }
                           className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1 text-xs font-semibold"
@@ -554,7 +568,7 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* KOLOM KANAN (1 SPAN): FEED AKTIVITAS SIKLUS SAWAH */}
+        {/* KOLOM KANAN: FEED AKTIVITAS SIKLUS SAWAH */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col">
           <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
             <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
