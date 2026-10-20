@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+@media print {
+  /* Atur ukuran kertas & margin printer */
+  @page {
+    size: auto;
+    margin: 10mm;
+  }
+
+  /* Pastikan background cetak berwarna tepat */
+  body {
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Sembunyikan seluruh tampilan aplikasi */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Tampilkan hanya area nota */
+  #print-section,
+  #print-section * {
+    visibility: visible;
+  }
+
+  /* Posisikan nota dan auto resize ke lebar kertas */
+  #print-section {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    page-break-inside: avoid;
+  }
+
+  /* Sembunyikan elemen dengan class no-print */
+  .no-print {
+    display: none !important;
+  }
+}

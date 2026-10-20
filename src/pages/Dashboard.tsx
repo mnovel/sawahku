@@ -1,0 +1,629 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { pb } from "../lib/pb";
+import { useNotify } from "../contexts/NotificationContext";
+import {
+  Sprout,
+  Users,
+  Activity,
+  Banknote,
+  ArrowRight,
+  Clock,
+  Plus,
+  FileText,
+  AlertTriangle,
+  MessageCircle,
+  TrendingUp,
+  PieChart,
+  RotateCw,
+  Calendar,
+  Image as ImageIcon,
+} from "lucide-react";
+
+interface Transaksi {
+  id: string;
+  tanggal_mulai: string;
+  tanggal_jatuh_tempo?: string;
+  harga_sewa: number;
+  status: string;
+  status_bayar: string;
+  nominal_dibayar: number;
+  expand?: {
+    sawah?: { id: string; nama: string };
+    penyewa?: { id: string; nama: string; kontak?: string };
+  };
+}
+
+interface LogBulanan {
+  id: string;
+  periode: string;
+  fase: string;
+  keterangan: string;
+  foto?: string;
+  expand?: {
+    transaksi?: {
+      expand?: {
+        sawah?: { nama: string };
+        penyewa?: { nama: string };
+      };
+    };
+  };
+}
+
+interface RiwayatBayar {
+  id: string;
+  nominal: number;
+  tanggal: string;
+}
+
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return "-";
+  return new Date(dateStr).toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+const formatWA = (phone: string) => {
+  if (!phone) return "";
+  let cleaned = phone.replace(/\D/g, "");
+  if (cleaned.startsWith("0")) {
+    cleaned = "62" + cleaned.slice(1);
+  }
+  return cleaned;
+};
+
+const calculateDuration = (startDateStr: string) => {
+  if (!startDateStr) return "-";
+  const start = new Date(startDateStr);
+  const end = new Date();
+
+  let months =
+    (end.getFullYear() - start.getFullYear()) * 12 +
+    (end.getMonth() - start.getMonth());
+  let days = end.getDate() - start.getDate();
+
+  if (days < 0) {
+    months--;
+    const prevMonth = new Date(end.getFullYear(), end.getMonth(), 0);
+    days += prevMonth.getDate();
+  }
+
+  if (months < 0) return "0 Hari";
+
+  const parts = [];
+  if (months > 0) parts.push(`${months} bln`);
+  if (days > 0 || parts.length === 0) parts.push(`${days} hr`);
+
+  return parts.join(" ");
+};
+
+const getFaseLabel = (fase: string) => {
+  switch (fase) {
+    case "tanam":
+      return { label: "Tanam", bg: "bg-emerald-100 text-emerald-700" };
+    case "perawatan":
+      return { label: "Perawatan", bg: "bg-blue-100 text-blue-700" };
+    case "panen":
+      return { label: "Panen", bg: "bg-amber-100 text-amber-700" };
+    case "kosong":
+      return { label: "Kosong", bg: "bg-slate-100 text-slate-600" };
+    default:
+      return { label: "Lainnya", bg: "bg-purple-100 text-purple-700" };
+  }
+};
+
+export default function Dashboard() {
+  const navigate = useNavigate();
+  const { toast } = useNotify();
+  const [loading, setLoading] = useState(true);
+
+  const [stats, setStats] = useState({
+    sawahTotal: 0,
+    sawahTersewa: 0,
+    penyewaAktif: 0,
+    transaksiAktif: 0,
+    potensiPendapatan: 0,
+    uangMasukBulanIni: 0,
+  });
+
+  const [activeTrx, setActiveTrx] = useState<Transaksi[]>([]);
+  const [overdueTrx, setOverdueTrx] = useState<Transaksi[]>([]);
+  const [recentLogs, setRecentLogs] = useState<LogBulanan[]>([]);
+
+  useEffect(() => {
+    async function fetchDashboardData() {
+      try {
+        setLoading(true);
+        const now = new Date();
+        const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+        // 1. Data Sawah & Okupansi
+        const sawahList = await pb.collection("sawah").getFullList();
+        const totalSawah = sawahList.length;
+        const sawahTersewa = sawahList.filter(
+          (s: any) => s.status === "disewa",
+        ).length;
+
+        // 2. Data Penyewa
+        const penyewaCount = await pb
+          .collection("penyewa")
+          .getList(1, 1, { filter: 'status="aktif"' });
+
+        // 3. Transaksi Sewa Aktif
+        const trxAktif = await pb
+          .collection("transaksi_sewa")
+          .getFullList<Transaksi>({
+            filter: 'status="aktif"',
+            expand: "sawah,penyewa",
+            sort: "-created",
+          });
+
+        // 4. Tagihan Menunggak / Belum Lunas
+        const tagihanMenunggak = trxAktif.filter(
+          (t) => t.status_bayar !== "lunas",
+        );
+
+        // 5. Total Potensi Pendapatan Sewa Aktif
+        const potensi = trxAktif.reduce(
+          (sum, item) => sum + item.harga_sewa,
+          0,
+        );
+
+        // 6. Arus Kas Nyata Bulan Ini (dari riwayat_bayar)
+        let cashInThisMonth = 0;
+        try {
+          const bayarBulanIni = await pb
+            .collection("riwayat_bayar")
+            .getFullList<RiwayatBayar>({
+              filter: `tanggal >= "${currentMonthPrefix}-01"`,
+            });
+          cashInThisMonth = bayarBulanIni.reduce(
+            (sum, item) => sum + item.nominal,
+            0,
+          );
+        } catch {
+          cashInThisMonth = trxAktif.reduce(
+            (sum, item) => sum + (item.nominal_dibayar || 0),
+            0,
+          );
+        }
+
+        // 7. Feed Aktivitas Terbaru (Log Bulanan)
+        let logs: LogBulanan[] = [];
+        try {
+          logs = await pb
+            .collection("log_bulanan")
+            .getList<LogBulanan>(1, 4, {
+              sort: "-created",
+              expand: "transaksi.sawah,transaksi.penyewa",
+            })
+            .then((res) => res.items);
+        } catch (err) {
+          console.error(err);
+        }
+
+        setStats({
+          sawahTotal: totalSawah,
+          sawahTersewa: sawahTersewa,
+          penyewaAktif: penyewaCount.totalItems,
+          transaksiAktif: trxAktif.length,
+          potensiPendapatan: potensi,
+          uangMasukBulanIni: cashInThisMonth,
+        });
+
+        setActiveTrx(trxAktif.slice(0, 5));
+        setOverdueTrx(tagihanMenunggak);
+        setRecentLogs(logs);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchDashboardData();
+  }, []);
+
+  const sendWATagihan = (trx: Transaksi) => {
+    const penyewaNama = trx.expand?.penyewa?.nama || "Penyewa";
+    const sawahNama = trx.expand?.sawah?.nama || "Sawah";
+    const kontak = trx.expand?.penyewa?.kontak || "";
+    const sisa = trx.harga_sewa - (trx.nominal_dibayar || 0);
+    const jatuhTempo = trx.tanggal_jatuh_tempo
+      ? formatDate(trx.tanggal_jatuh_tempo)
+      : "-";
+    const linkNota = `${window.location.origin}/nota/${trx.id}`;
+
+    if (!kontak) {
+      toast("Nomor kontak penyewa belum diisi pada data Penyewa!", "warning");
+      return;
+    }
+
+    const pesan =
+      `Halo Bp/Ibu *${penyewaNama}*,\n\n` +
+      `Sekadar mengingatkan mengenai tagihan sewa sawah *${sawahNama}*.\n\n` +
+      `• Total Sewa: Rp ${trx.harga_sewa.toLocaleString("id-ID")}\n` +
+      `• Terbayar: Rp ${(trx.nominal_dibayar || 0).toLocaleString("id-ID")}\n` +
+      `• *Sisa Tagihan: Rp ${sisa.toLocaleString("id-ID")}*\n` +
+      `• Tanggal Jatuh Tempo: *${jatuhTempo}*\n\n` +
+      `Rincian nota digital dapat diakses melalui link berikut:\n${linkNota}\n\n` +
+      `Terima kasih. 🙏`;
+
+    const waUrl = `https://wa.me/${formatWA(kontak)}?text=${encodeURIComponent(pesan)}`;
+    window.open(waUrl, "_blank");
+  };
+
+  const occupancyRate =
+    stats.sawahTotal > 0
+      ? Math.round((stats.sawahTersewa / stats.sawahTotal) * 100)
+      : 0;
+
+  return (
+    <div className="space-y-6 max-w-6xl mx-auto">
+      {/* 1. KARTU STATISTIK & WIDGET OKUPANSI */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* OKUPANSI SAWAH */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Okupansi Sawah
+            </span>
+            <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-600">
+              <PieChart size={20} />
+            </div>
+          </div>
+          <div>
+            <h3 className="text-2xl font-bold text-slate-800">
+              {occupancyRate}%
+            </h3>
+            <div className="w-full bg-slate-100 rounded-full h-2 mt-2 overflow-hidden">
+              <div
+                className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
+                style={{ width: `${occupancyRate}%` }}
+              ></div>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">
+              {stats.sawahTersewa} dari {stats.sawahTotal} sawah disewa
+            </p>
+          </div>
+        </div>
+
+        {/* TOTAL SAWAH */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex items-center gap-4">
+          <div className="p-3.5 rounded-xl bg-emerald-500 text-white">
+            <Sprout size={22} />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Total Aset Sawah
+            </p>
+            <h3 className="text-2xl font-bold text-slate-800">
+              {stats.sawahTotal}
+            </h3>
+            <p className="text-xs text-emerald-600 font-medium mt-0.5">
+              {stats.sawahTotal - stats.sawahTersewa} Sawah Tersedia
+            </p>
+          </div>
+        </div>
+
+        {/* PENYEWA AKTIF */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex items-center gap-4">
+          <div className="p-3.5 rounded-xl bg-blue-500 text-white">
+            <Users size={22} />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Penyewa Aktif
+            </p>
+            <h3 className="text-2xl font-bold text-slate-800">
+              {stats.penyewaAktif}
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">Terdaftar aktif</p>
+          </div>
+        </div>
+
+        {/* SEWA AKTIF */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex items-center gap-4">
+          <div className="p-3.5 rounded-xl bg-amber-500 text-white">
+            <Activity size={22} />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Sewa Berjalan
+            </p>
+            <h3 className="text-2xl font-bold text-slate-800">
+              {stats.transaksiAktif}
+            </h3>
+            <p className="text-xs text-amber-600 font-medium mt-0.5">
+              {overdueTrx.length} Belum Lunas
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. PENDAPATAN & ARUS KAS NYATA */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* KARTU PENDAPATAN (POTENSI & REALISASI) */}
+        <div className="lg:col-span-2 bg-gradient-to-r from-emerald-700 to-emerald-900 rounded-2xl p-6 sm:p-8 shadow-sm text-white flex flex-col justify-between relative overflow-hidden">
+          <Banknote
+            size={140}
+            className="absolute -right-6 -bottom-6 text-emerald-500/20 pointer-events-none"
+          />
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-emerald-600/50 pb-6 mb-6">
+            <div>
+              <p className="text-emerald-200 text-xs font-semibold uppercase tracking-wider mb-1">
+                Potensi Nilai Kontrak (Sewa Aktif)
+              </p>
+              <h3 className="text-3xl sm:text-4xl font-bold">
+                Rp {stats.potensiPendapatan.toLocaleString("id-ID")}
+              </h3>
+            </div>
+            <div className="bg-emerald-800/80 border border-emerald-600/60 p-4 rounded-xl shrink-0">
+              <p className="text-emerald-200 text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 mb-1">
+                <TrendingUp size={14} className="text-emerald-400" /> Setoran
+                Masuk Bulan Ini
+              </p>
+              <p className="text-2xl font-extrabold text-white">
+                Rp {stats.uangMasukBulanIni.toLocaleString("id-ID")}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between text-xs text-emerald-200">
+            <span>
+              Data diperbarui secara real-time berdasarkan riwayat setoran.
+            </span>
+            <button
+              onClick={() => navigate("/laporan")}
+              className="hover:text-white font-semibold flex items-center gap-1 underline cursor-pointer"
+            >
+              Buka Laporan
+            </button>
+          </div>
+        </div>
+
+        {/* QUICK ACTIONS */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col justify-center gap-3">
+          <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
+            Aksi Cepat
+          </h4>
+          <button
+            onClick={() => navigate("/transaksi")}
+            className="flex items-center gap-2 w-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-4 py-3 rounded-xl font-medium transition-colors border border-emerald-100 cursor-pointer"
+          >
+            <Plus size={18} /> Buat Transaksi Baru
+          </button>
+          <button
+            onClick={() => navigate("/laporan")}
+            className="flex items-center gap-2 w-full bg-slate-50 text-slate-700 hover:bg-slate-100 px-4 py-3 rounded-xl font-medium transition-colors border border-slate-200 cursor-pointer"
+          >
+            <FileText size={18} /> Lihat Laporan Keuangan
+          </button>
+        </div>
+      </div>
+
+      {/* 3. KARTU PERINGATAN TAGIHAN & JATUH TEMPO */}
+      {!loading && overdueTrx.length > 0 && (
+        <div className="bg-amber-50/90 border border-amber-200 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2 text-amber-900 font-bold">
+              <AlertTriangle className="text-amber-600" size={22} />
+              <h3>Peringatan Tagihan & Jatuh Tempo ({overdueTrx.length})</h3>
+            </div>
+            <button
+              onClick={() => navigate("/transaksi?bayar=menunggak")}
+              className="text-xs font-semibold text-amber-800 hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              Kelola Semua <ArrowRight size={14} />
+            </button>
+          </div>
+          <div className="space-y-3">
+            {overdueTrx.map((trx) => {
+              const sisa = trx.harga_sewa - (trx.nominal_dibayar || 0);
+              const todayStr = new Date().toISOString().split("T")[0];
+              const isPastDue =
+                trx.tanggal_jatuh_tempo && trx.tanggal_jatuh_tempo < todayStr;
+
+              return (
+                <div
+                  key={trx.id}
+                  className="bg-white p-4 rounded-xl border border-amber-200/60 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs"
+                >
+                  <div>
+                    <p className="font-semibold text-slate-800">
+                      {trx.expand?.penyewa?.nama || "Penyewa"} —{" "}
+                      <span className="text-emerald-700">
+                        {trx.expand?.sawah?.nama || "Sawah"}
+                      </span>
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Sisa Tagihan:{" "}
+                      <span className="font-bold text-red-600">
+                        Rp {sisa.toLocaleString("id-ID")}
+                      </span>{" "}
+                      | Jatuh Tempo:{" "}
+                      <span
+                        className={`font-medium ${isPastDue ? "text-red-600 font-bold" : "text-slate-700"}`}
+                      >
+                        {trx.tanggal_jatuh_tempo
+                          ? formatDate(trx.tanggal_jatuh_tempo)
+                          : "Belum diatur"}{" "}
+                        {isPastDue && "(Lewat Jatuh Tempo)"}
+                      </span>
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => sendWATagihan(trx)}
+                    className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer shrink-0"
+                  >
+                    <MessageCircle size={16} /> Tagih WA
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 4. GRID 2 KOLOM: TRANSAKSI AKTIF & FEED JURNAL AKTIVITAS */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* KOLOM KIRI (2 SPAN): DAFTAR SEWA AKTIF */}
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+          <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+            <div>
+              <h3 className="font-bold text-slate-800">Sawah Sedang Disewa</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                5 transaksi terbaru yang sedang berjalan.
+              </p>
+            </div>
+            <button
+              onClick={() => navigate("/transaksi")}
+              className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 bg-emerald-50 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+            >
+              Lihat Semua <ArrowRight size={14} />
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="p-8 text-center text-slate-500 text-sm">
+              Memuat data...
+            </div>
+          ) : activeTrx.length === 0 ? (
+            <div className="p-12 text-center text-slate-500 flex flex-col items-center">
+              <div className="text-4xl mb-3">🌾</div>
+              <p className="text-sm">
+                Tidak ada sawah yang sedang disewa saat ini.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto flex-1">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-white border-b border-slate-100 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  <tr>
+                    <th className="px-6 py-3.5">Sawah & Penyewa</th>
+                    <th className="px-6 py-3.5">Tanggal Mulai</th>
+                    <th className="px-6 py-3.5">Durasi</th>
+                    <th className="px-6 py-3.5 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm">
+                  {activeTrx.map((trx) => (
+                    <tr
+                      key={trx.id}
+                      className="hover:bg-slate-50 transition-colors"
+                    >
+                      <td className="px-6 py-4">
+                        <div className="font-semibold text-slate-800 flex items-center gap-2">
+                          <Sprout size={16} className="text-emerald-500" />{" "}
+                          {trx.expand?.sawah?.nama || "Sawah Dihapus"}
+                        </div>
+                        <div className="text-xs text-slate-500 flex items-center gap-2 mt-1">
+                          <Users size={13} />{" "}
+                          {trx.expand?.penyewa?.nama || "Penyewa Dihapus"}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-slate-600 font-medium text-xs">
+                        {formatDate(trx.tanggal_mulai)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-[11px] text-amber-700 font-bold flex items-center gap-1 bg-amber-50 w-fit px-2.5 py-1 rounded-full border border-amber-200">
+                          <Clock size={13} />
+                          {calculateDuration(trx.tanggal_mulai)}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          onClick={() =>
+                            navigate(
+                              `/transaksi?q=${encodeURIComponent(trx.expand?.sawah?.nama || "")}`,
+                            )
+                          }
+                          className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1 text-xs font-semibold"
+                          title="Perpanjang atau kelola"
+                        >
+                          <RotateCw size={14} /> Kelola
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* KOLOM KANAN (1 SPAN): FEED AKTIVITAS SIKLUS SAWAH */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col">
+          <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+            <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+              <Calendar size={18} className="text-emerald-500" /> Aktivitas
+              Siklus Sawah
+            </h3>
+            <span className="text-[11px] font-semibold text-slate-400">
+              Jurnal Terbaru
+            </span>
+          </div>
+
+          {loading ? (
+            <div className="p-6 text-center text-slate-400 text-xs">
+              Memuat aktivitas...
+            </div>
+          ) : recentLogs.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-slate-400 text-xs text-center">
+              <ImageIcon size={32} className="opacity-40 mb-2" />
+              <p>Belum ada catatan aktivitas siklus tanam yang diisi.</p>
+            </div>
+          ) : (
+            <div className="space-y-4 flex-1">
+              {recentLogs.map((log) => {
+                const faseStyle = getFaseLabel(log.fase);
+                const sawahNama =
+                  log.expand?.transaksi?.expand?.sawah?.nama || "Sawah";
+
+                return (
+                  <div
+                    key={log.id}
+                    className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-start gap-3"
+                  >
+                    {log.foto ? (
+                      <img
+                        src={pb.files.getUrl(log, log.foto)}
+                        alt="Foto Aktivitas"
+                        className="w-12 h-12 rounded-lg object-cover border border-slate-200 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                        <Sprout size={20} />
+                      </div>
+                    )}
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="font-semibold text-xs text-slate-800 truncate">
+                          {sawahNama}
+                        </span>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded ${faseStyle.bg}`}
+                        >
+                          {faseStyle.label}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 line-clamp-2">
+                        {log.keterangan || "Aktivitas siklus diselesaikan."}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-1 font-medium">
+                        {log.periode}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
