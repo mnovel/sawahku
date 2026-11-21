@@ -49,9 +49,9 @@ nginx -t
 systemctl reload nginx
 
 echo "== 7. Verifikasi"
-curl -fsS -o /dev/null -w "web /            -> HTTP %{http_code}\n" -H "Host: sawahku.novelwardah.com" http://127.0.0.1/
-curl -fsS -o /dev/null -w "api /api/health  -> HTTP %{http_code}\n" -H "Host: sawahku.novelwardah.com" http://127.0.0.1/api/health
-curl -fsS -o /dev/null -w "nota /nota/abc   -> HTTP %{http_code}\n" -H "Host: sawahku.novelwardah.com" http://127.0.0.1/nota/abc
+curl -sS -o /dev/null -w "web /            -> HTTP %{http_code}\n" -H "Host: sawahku.novelwardah.com" http://127.0.0.1/
+curl -sS -o /dev/null -w "api /api/health  -> HTTP %{http_code}\n" -H "Host: sawahku.novelwardah.com" http://127.0.0.1/api/health
+curl -sS -o /dev/null -w "nota /nota/abc   -> HTTP %{http_code}\n" -H "Host: sawahku.novelwardah.com" http://127.0.0.1/nota/abc
 
 echo
 echo "Selesai. Backup: $BACKUP"
