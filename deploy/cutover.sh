@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# Cutover sekali jalan: PocketBase systemd + nginx statis  ->  Docker Compose.
+# Cutover sekali jalan: PocketBase systemd -> Docker Compose.
+# Frontend & API hanya dilayani container (web 127.0.0.1:8081,
+# PocketBase 127.0.0.1:8090); akses publik lewat Cloudflare Tunnel,
+# bukan vhost nginx host.
 # Jalankan di server dengan sudo:
 #   sudo bash /var/www/html/sawah/deploy/cutover.sh
 set -euo pipefail
@@ -15,10 +18,9 @@ if [ "${EUID:-$(id -u)}" -ne 0 ]; then
   exit 1
 fi
 
-echo "== 1. Backup data & konfigurasi ke $BACKUP"
+echo "== 1. Backup data PocketBase ke $BACKUP"
 mkdir -p "$BACKUP"
 tar czf "$BACKUP/pb_data.tgz" -C /opt/pocketbase pb_data
-cp -a /etc/nginx/sites-enabled/sawah "$BACKUP/nginx-sawah.conf"
 
 echo "== 2. Hentikan PocketBase systemd (port 8090 harus kosong)"
 systemctl disable --now pocketbase || true
@@ -43,16 +45,12 @@ for _ in $(seq 1 30); do
 done
 curl -fsS http://127.0.0.1:8090/api/health >/dev/null
 
-echo "== 6. Alihkan nginx host ke container"
-install -m 644 "$APP/deploy/nginx/sawahku.novelwardah.com.conf" /etc/nginx/sites-enabled/sawah
-nginx -t
-systemctl reload nginx
-
-echo "== 7. Verifikasi"
-curl -sS -o /dev/null -w "web /            -> HTTP %{http_code}\n" -H "Host: sawahku.novelwardah.com" http://127.0.0.1/
-curl -sS -o /dev/null -w "api /api/health  -> HTTP %{http_code}\n" -H "Host: sawahku.novelwardah.com" http://127.0.0.1/api/health
-curl -sS -o /dev/null -w "nota /nota/abc   -> HTTP %{http_code}\n" -H "Host: sawahku.novelwardah.com" http://127.0.0.1/nota/abc
+echo "== 6. Verifikasi container"
+curl -sS -o /dev/null -w "web  /            -> HTTP %{http_code}\n" http://127.0.0.1:8081/
+curl -sS -o /dev/null -w "web  /nota/abc    -> HTTP %{http_code}\n" http://127.0.0.1:8081/nota/abc
+curl -sS -o /dev/null -w "web  /api/health  -> HTTP %{http_code}\n" http://127.0.0.1:8081/api/health
+curl -sS -o /dev/null -w "pb   /api/health  -> HTTP %{http_code}\n" http://127.0.0.1:8090/api/health
 
 echo
 echo "Selesai. Backup: $BACKUP"
-echo "Rollback: sudo bash $APP/deploy/rollback.sh $BACKUP"
+echo "Akses publik diatur lewat Cloudflare Tunnel ke http://127.0.0.1:8081"

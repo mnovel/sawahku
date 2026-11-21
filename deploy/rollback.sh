@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Rollback ke instalasi lama (systemd PocketBase + dist statis).
+# Rollback ke instalasi lama (PocketBase systemd). Vhost nginx host sengaja
+# tidak dipulihkan karena akses publik memakai Cloudflare Tunnel ke container.
 #   sudo bash /var/www/html/sawah/deploy/rollback.sh /root/sawahku-backup-XXXX
 set -euo pipefail
 
@@ -25,11 +26,6 @@ chown -R 999:987 /opt/pocketbase/pb_data
 
 echo "== 3. Nyalakan PocketBase systemd"
 systemctl enable --now pocketbase
-
-echo "== 4. Kembalikan vhost nginx"
-cp -a "$BACKUP/nginx-sawah.conf" /etc/nginx/sites-enabled/sawah
-nginx -t
-systemctl reload nginx
-
-curl -fsS -o /dev/null -w "web -> HTTP %{http_code}\n" -H "Host: sawahku.novelwardah.com" http://127.0.0.1/
+sleep 3
+curl -fsS -o /dev/null -w "pocketbase -> HTTP %{http_code}\n" http://127.0.0.1:8090/api/health
 echo "Rollback selesai."

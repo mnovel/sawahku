@@ -29,4 +29,5 @@ echo "== 3. Pastikan container jalan"
 ssh "$SERVER" "cd '$REMOTE_DIR' && docker compose up -d && docker compose ps"
 
 echo "== 4. Cek HTTP"
-ssh "$SERVER" "curl -sS -o /dev/null -w 'web -> HTTP %{http_code}\n' -H 'Host: sawahku.novelwardah.com' http://127.0.0.1/; curl -sS -o /dev/null -w 'api -> HTTP %{http_code}\n' -H 'Host: sawahku.novelwardah.com' http://127.0.0.1/api/health"
+# Akses publik lewat Cloudflare Tunnel ke 127.0.0.1:8081 (bukan vhost nginx host).
+ssh "$SERVER" "curl -sS -o /dev/null -w 'web /           -> HTTP %{http_code}\n' http://127.0.0.1:8081/; curl -sS -o /dev/null -w 'web /api/health -> HTTP %{http_code}\n' http://127.0.0.1:8081/api/health; curl -sS -o /dev/null -w 'pb  /api/health -> HTTP %{http_code}\n' http://127.0.0.1:8090/api/health"
