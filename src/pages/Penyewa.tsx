@@ -254,9 +254,9 @@ export default function Penyewa() {
       </div>
 
       {/* BARIS PENCARIAN, FILTER & SORTING */}
-      <div className="flex flex-col lg:flex-row items-center gap-3 mb-6">
+      <div className="flex flex-col md:flex-row items-center gap-3 mb-6">
         {/* Kolom Pencarian */}
-        <div className="relative w-full lg:flex-1">
+        <div className="relative w-full md:flex-1">
           <Search className="absolute left-3 top-3 text-slate-400" size={20} />
           <input
             type="text"
@@ -267,10 +267,8 @@ export default function Penyewa() {
           />
         </div>
 
-        {/* Wrapper untuk Dropdown Filter & Tombol Urutkan agar tidak terlalu lebar */}
-        <div className="flex items-center gap-3 w-full lg:w-auto">
-          {/* Dropdown Status */}
-          <div className="relative w-full sm:w-48">
+        {/* Dropdown Status */}
+        <div className="relative w-full md:w-48">
             <Filter
               className="absolute left-3 top-3 text-slate-400"
               size={20}
@@ -284,34 +282,31 @@ export default function Penyewa() {
               <option value="aktif">Aktif</option>
               <option value="nonaktif">Non-Aktif</option>
             </select>
-            <div className="absolute right-3 top-3 pointer-events-none">
-              <svg
-                className="w-5 h-5 text-slate-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M19 9l-7 7-7-7"
-                ></path>
-              </svg>
-            </div>
+          <div className="absolute right-3 top-3 pointer-events-none">
+            <svg
+              className="w-5 h-5 text-slate-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M19 9l-7 7-7-7"
+              ></path>
+            </svg>
           </div>
-
-          {/* Tombol Urutkan Nama */}
-          <button
-            onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white border border-slate-300 hover:bg-slate-50 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-700 shadow-sm transition-colors cursor-pointer shrink-0"
-          >
-            <ArrowUpDown size={16} className="text-slate-500" />
-            <span className="truncate">
-              Urutkan: {sortOrder === "asc" ? "A - Z" : "Z - A"}
-            </span>
-          </button>
         </div>
+
+        {/* Tombol Urutkan Nama */}
+        <button
+          onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+          className="w-full md:w-auto flex items-center justify-center gap-2 bg-white border border-slate-300 hover:bg-slate-50 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-700 shadow-sm transition-colors cursor-pointer shrink-0"
+        >
+          <ArrowUpDown size={16} className="text-slate-500" />
+          Urutkan: {sortOrder === "asc" ? "A - Z" : "Z - A"}
+        </button>
       </div>
 
       {/* TABEL DATA PENYEWA */}
