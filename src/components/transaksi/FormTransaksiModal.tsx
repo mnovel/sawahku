@@ -1,4 +1,5 @@
 import { X, CreditCard, PenTool } from "lucide-react"; // Tambah ikon PenTool
+import SearchableSelect from "../ui/SearchableSelect";
 
 interface Sawah {
   id: string;
@@ -107,19 +108,18 @@ export default function FormTransaksiModal({
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
               Pilih Penyewa
             </label>
-            <select
-              required
+            <SearchableSelect
               value={form.penyewa}
-              onChange={(e) => setForm({ ...form, penyewa: e.target.value })}
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
-            >
-              <option value="">-- Pilih Penyewa --</option>
-              {availablePenyewa.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nama} {p.status === "nonaktif" ? "(Non-Aktif)" : ""}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setForm({ ...form, penyewa: v })}
+              placeholder="-- Pilih Penyewa --"
+              ariaLabel="Pilih Penyewa"
+              inputClassName="bg-slate-50"
+              options={availablePenyewa.map((p) => ({
+                value: p.id,
+                label: p.nama,
+                hint: p.status === "nonaktif" ? "(Non-Aktif)" : undefined,
+              }))}
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

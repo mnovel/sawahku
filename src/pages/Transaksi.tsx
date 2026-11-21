@@ -10,6 +10,7 @@ import {
   calculateDuration,
 } from "../lib/formatters";
 import { getFaseStyle } from "../lib/constants";
+import SearchableSelect from "../components/ui/SearchableSelect";
 import { sendWATagihan } from "../lib/whatsapp";
 import type {
   Sawah,
@@ -699,37 +700,16 @@ export default function Transaksi() {
           />
         </div>
 
-        {/* Filter Penyewa */}
-        <div className="relative">
-          <User className="absolute left-3 top-3 text-slate-400" size={20} />
-          <select
-            value={filterPenyewa}
-            onChange={(e) => setFilterPenyewa(e.target.value)}
-            className="w-full pl-10 pr-8 py-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm appearance-none cursor-pointer text-slate-700 font-medium text-sm truncate"
-          >
-            <option value="semua">Semua Penyewa</option>
-            {penyewaList.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nama}
-              </option>
-            ))}
-          </select>
-          <div className="absolute right-3 top-3 pointer-events-none">
-            <svg
-              className="w-5 h-5 text-slate-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M19 9l-7 7-7-7"
-              ></path>
-            </svg>
-          </div>
-        </div>
+        {/* Filter Penyewa (bisa dicari) */}
+        <SearchableSelect
+          icon={<User size={20} />}
+          value={filterPenyewa}
+          onChange={(v) => setFilterPenyewa(v || "semua")}
+          emptyLabel="Semua Penyewa"
+          placeholder="Semua Penyewa"
+          ariaLabel="Filter penyewa"
+          options={penyewaList.map((p) => ({ value: p.id, label: p.nama }))}
+        />
 
         {/* Filter Status */}
         <div className="relative">

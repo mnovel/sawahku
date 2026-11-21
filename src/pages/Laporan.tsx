@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { pb } from "../lib/pb";
 import { useNotify } from "../contexts/NotificationContext";
+import SearchableSelect from "../components/ui/SearchableSelect";
 import {
   FileText,
   Download,
@@ -278,18 +279,16 @@ export default function Laporan() {
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">
               Penyewa
             </label>
-            <select
+            <SearchableSelect
+              size="sm"
               value={filterPenyewa}
-              onChange={(e) => setFilterPenyewa(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:border-emerald-500"
-            >
-              <option value="">Semua Penyewa</option>
-              {penyewaList.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nama}
-                </option>
-              ))}
-            </select>
+              onChange={setFilterPenyewa}
+              emptyLabel="Semua Penyewa"
+              placeholder="Semua Penyewa"
+              ariaLabel="Filter penyewa"
+              inputClassName="bg-slate-50 border-slate-200"
+              options={penyewaList.map((p) => ({ value: p.id, label: p.nama }))}
+            />
           </div>
         </div>
       </div>
