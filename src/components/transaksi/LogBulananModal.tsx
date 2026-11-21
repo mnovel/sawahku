@@ -111,19 +111,32 @@ export default function LogBulananModal({
                     <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wider">
                       Fase
                     </label>
-                    <select
-                      value={logForm.fase}
-                      onChange={(e) =>
-                        setLogForm({ ...logForm, fase: e.target.value })
-                      }
-                      className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                    >
-                      <option value="tanam">🌾 Tanam</option>
-                      <option value="perawatan">💧 Perawatan</option>
-                      <option value="panen">🌾 Panen</option>
-                      <option value="kosong">⏸️ Kosong</option>
-                      <option value="lain">📝 Lainnya</option>
-                    </select>
+                    {/* Pilihan fase memakai ikon & label yang sama dengan
+                        badge di Riwayat Aktivitas (getFaseStyle). */}
+                    <div className="grid grid-cols-2 gap-2">
+                      {["tanam", "perawatan", "panen", "kosong", "lain"].map(
+                        (fase) => {
+                          const style = getFaseStyle(fase);
+                          const aktif = (logForm.fase || "tanam") === fase;
+                          return (
+                            <button
+                              key={fase}
+                              type="button"
+                              aria-pressed={aktif}
+                              onClick={() => setLogForm({ ...logForm, fase })}
+                              className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
+                                aktif
+                                  ? `${style.bg} ${style.color} ${style.border}`
+                                  : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50"
+                              }`}
+                            >
+                              {style.icon}
+                              {style.label}
+                            </button>
+                          );
+                        },
+                      )}
+                    </div>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wider">
