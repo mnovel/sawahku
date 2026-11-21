@@ -43,6 +43,8 @@ export interface TransaksiSewa {
   harga_sewa: number;
   /** Jumlah musim tanam yang disewa dalam satu kontrak (default 1). */
   jumlah_musim?: number;
+  /** Salinan nama penyewa untuk nota publik (tanpa data kontak). */
+  penyewa_nama?: string;
   status: "aktif" | "selesai" | "batal";
   status_bayar: "belum_bayar" | "dp" | "lunas";
   nominal_dibayar: number;

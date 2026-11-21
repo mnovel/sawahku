@@ -1163,7 +1163,8 @@ export default function Sawah() {
                 ))}
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-6">
+              {/* Footer sticky agar tombol simpan tetap terjangkau. */}
+              <div className="sticky bottom-0 z-10 -mx-6 -mb-6 mt-2 px-6 py-3 bg-white border-t border-slate-200 flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}

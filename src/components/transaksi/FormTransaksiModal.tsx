@@ -314,7 +314,8 @@ export default function FormTransaksiModal({
             )}
           </div>
 
-          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-4 border-t border-slate-100 mt-2">
+          {/* Footer sticky agar tombol aksi tetap terjangkau pada layar pendek. */}
+          <div className="sticky bottom-0 z-10 -mx-6 -mb-6 mt-2 px-6 py-3 bg-white border-t border-slate-200 flex flex-col-reverse sm:flex-row justify-end gap-2">
             <button
               type="button"
               onClick={onClose}

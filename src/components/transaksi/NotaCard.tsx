@@ -34,6 +34,8 @@ interface TransaksiNota {
   tanggal_jatuh_tempo?: string;
   harga_sewa: number;
   jumlah_musim?: number;
+  /** Salinan nama penyewa agar nota publik tetap lengkap. */
+  penyewa_nama?: string;
   status: string;
   status_bayar: string;
   nominal_dibayar: number;
@@ -252,7 +254,7 @@ export default function NotaCard({ trx, payList = [] }: Props) {
             <User size={14} /> Ditagihkan Kepada:
           </p>
           <p className="font-bold text-slate-900 text-lg leading-tight">
-            {trx.expand?.penyewa?.nama || "-"}
+            {trx.expand?.penyewa?.nama || trx.penyewa_nama || "-"}
           </p>
           {trx.expand?.penyewa?.kontak && (
             <p className="text-sm text-slate-600 mt-1 flex items-center gap-1.5">
@@ -540,7 +542,7 @@ export default function NotaCard({ trx, payList = [] }: Props) {
           )}
 
           <p className="font-bold text-slate-800 border-b border-slate-400 pb-1 mx-8 w-full relative z-20">
-            {trx.expand?.penyewa?.nama || "Penyewa"}
+            {trx.expand?.penyewa?.nama || trx.penyewa_nama || "Penyewa"}
           </p>
         </div>
 

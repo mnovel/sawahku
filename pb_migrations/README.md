@@ -35,6 +35,11 @@ Migrasi ketiga `1794000002_sawahku_fix_rules.js` menyamakan API rules pada insta
 - `sawah`: `viewRule` disamakan dengan `listRule` (publik) agar `expand=sawah` pada nota publik tidak kosong.
 - Data penyewa tetap tidak terbuka: `expand=penyewa` hanya jalan bila `penyewa.viewRule` mengizinkan, dan request anonim atas `penyewa` mengembalikan 0 record.
 
+Migrasi keempat `1794000003_transaksi_penyewa_nama.js` menambahkan field `transaksi_sewa.penyewa_nama` dan mengisinya dari relasi `penyewa` (idempoten):
+
+- Nota publik `/nota/:id` bisa menampilkan **nama** penyewa walau koleksi `penyewa` tetap tertutup untuk tamu (kontak & alamat tidak ikut tersimpan di field ini).
+- Frontend menulis `penyewa_nama` setiap kali transaksi dibuat/diedit.
+
 ## Koleksi & field penting
 
 | Koleksi | Field utama |
@@ -42,7 +47,7 @@ Migrasi ketiga `1794000002_sawahku_fix_rules.js` menyamakan API rules pada insta
 | `sawah` | nama, lokasi, luas_total, harga_sewa, status (`tersedia`/`disewa`), deskripsi, foto, url_maps |
 | `sertifikat` | sawah (relasi), tipe_hak, nib, luas, url_maps, url_bhumi |
 | `penyewa` | nama, kontak, alamat, status (`aktif`/`nonaktif`), foto |
-| `transaksi_sewa` | sawah, penyewa, tanggal_mulai, tanggal_panen, tanggal_jatuh_tempo, harga_sewa, **jumlah_musim**, status, status_bayar, nominal_dibayar, ttd_penyewa |
+| `transaksi_sewa` | sawah, penyewa, **penyewa_nama**, tanggal_mulai, tanggal_panen, tanggal_jatuh_tempo, harga_sewa, **jumlah_musim**, status, status_bayar, nominal_dibayar, ttd_penyewa |
 | `riwayat_bayar` | transaksi, nominal, tanggal, keterangan |
 | `log_bulanan` | transaksi, periode, fase, keterangan, foto |
 | `setting` | nama_aplikasi, deskripsi, deskripsi_singkat, keyword, nama_pengelola, domain, logo, alamat, nomor_wa, catatan_nota |
@@ -57,9 +62,9 @@ Untuk koleksi yang **baru dibuat** oleh migrasi ini:
 - `transaksi_sewa`: hanya baca-satu yang publik (agar `/nota/:id` bisa dibuka tanpa login), tulis khusus admin.
 - `penyewa`, `riwayat_bayar`, `log_bulanan`: seluruh akses khusus admin.
 
-Catatan: karena `penyewa` tidak dapat dibaca publik, nama/kontak penyewa tidak akan muncul pada `expand` di halaman nota publik. Ubah rule `penyewa` secara sadar bila memang ingin menampilkannya.
+Catatan: karena `penyewa` tidak dapat dibaca publik, `expand=penyewa` pada nota publik akan kosong. Nama penyewa di nota diambil dari field salinan `transaksi_sewa.penyewa_nama`, sehingga kontak & alamat tetap tidak tersedia untuk tamu.
 
 ## Kompatibilitas frontend
 
-Frontend tetap bisa menyimpan transaksi walau field `jumlah_musim` belum ada di server:
-`simpanTransaksi()` di `src/pages/Transaksi.tsx` akan mencoba ulang tanpa field tersebut dan menampilkan peringatan agar migrasi dijalankan. Setelah migrasi diterapkan, nilai jumlah musim tersimpan normal.
+Frontend tetap bisa menyimpan transaksi walau field baru (`jumlah_musim`, `penyewa_nama`) belum ada di server:
+`simpanTransaksi()` di `src/pages/Transaksi.tsx` mencoba ulang tanpa field yang ditolak (dan menampilkan peringatan untuk `jumlah_musim`). Setelah migrasi diterapkan, nilainya tersimpan normal.

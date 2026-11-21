@@ -48,7 +48,7 @@ import TandaTanganModal from "../components/transaksi/TandaTanganModal";
 
 // PocketBase menolak field yang tidak dikenal di koleksinya. Pesan errornya
 // bisa berbentuk validasi field maupun error SQL, jadi keduanya dicek.
-function isFieldJumlahMusimError(err: unknown): boolean {
+function isFieldJumlahMusimError(err: unknown, field: string): boolean {
   const detail = [
     (err as any)?.message,
     (err as any)?.response?.data
@@ -56,7 +56,7 @@ function isFieldJumlahMusimError(err: unknown): boolean {
       : "",
     String(err ?? ""),
   ].join(" ");
-  return /jumlah_musim/i.test(detail);
+  return new RegExp(field, "i").test(detail);
 }
 
 export default function Transaksi() {
@@ -64,7 +64,9 @@ export default function Transaksi() {
   const [searchParams] = useSearchParams();
 
   const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
-  const [filterStatus, setFilterStatus] = useState("aktif");
+  // Default "semua" agar transaksi yang baru diselesaikan/dibatalkan tidak
+  // langsung hilang dari daftar setelah aksi Selesai/Batalkan.
+  const [filterStatus, setFilterStatus] = useState("semua");
   const [filterPenyewa, setFilterPenyewa] = useState(
     searchParams.get("penyewa") || "semua",
   );
@@ -219,37 +221,57 @@ export default function Transaksi() {
     }
   }
 
-  // Simpan transaksi dengan fallback: bila server belum punya field
-  // `jumlah_musim` (migrasi belum dijalankan), coba sekali lagi tanpa field
-  // tersebut supaya transaksi tetap tersimpan.
+  // Simpan transaksi dengan fallback: bila server belum punya field baru
+  // (`penyewa_nama` / `jumlah_musim` karena migrasi belum dijalankan), coba
+  // lagi tanpa field tersebut supaya transaksi tetap tersimpan.
   async function simpanTransaksi(
     id: string | null,
     data: Record<string, any>,
   ) {
     const payload: Record<string, any> = { ...data };
-    try {
-      return id
-        ? await pb.collection("transaksi_sewa").update(id, payload)
-        : await pb.collection("transaksi_sewa").create(payload);
-    } catch (err) {
-      if (!("jumlah_musim" in payload) || !isFieldJumlahMusimError(err)) {
+
+    const kirim = () =>
+      id
+        ? pb.collection("transaksi_sewa").update(id, payload)
+        : pb.collection("transaksi_sewa").create(payload);
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await kirim();
+      } catch (err) {
+        if (
+          "penyewa_nama" in payload &&
+          isFieldJumlahMusimError(err, "penyewa_nama")
+        ) {
+          console.warn(
+            "Field penyewa_nama belum ada di PocketBase; menyimpan tanpa salinan nama penyewa.",
+            err,
+          );
+          delete payload.penyewa_nama;
+          continue;
+        }
+
+        if (
+          "jumlah_musim" in payload &&
+          isFieldJumlahMusimError(err, "jumlah_musim")
+        ) {
+          console.warn(
+            "Field jumlah_musim belum ada di PocketBase; menyimpan tanpa jumlah musim.",
+            err,
+          );
+          toast(
+            "Field 'jumlah_musim' belum ada di server. Transaksi tetap disimpan tanpa jumlah musim — jalankan migrasi PocketBase.",
+            "warning",
+          );
+          delete payload.jumlah_musim;
+          continue;
+        }
+
         throw err;
       }
-
-      console.warn(
-        "Field jumlah_musim belum ada di PocketBase; menyimpan tanpa jumlah musim.",
-        err,
-      );
-      toast(
-        "Field 'jumlah_musim' belum ada di server. Transaksi tetap disimpan tanpa jumlah musim — jalankan migrasi PocketBase.",
-        "warning",
-      );
-      delete payload.jumlah_musim;
-
-      return id
-        ? await pb.collection("transaksi_sewa").update(id, payload)
-        : await pb.collection("transaksi_sewa").create(payload);
     }
+
+    throw new Error("Gagal menyimpan transaksi setelah beberapa percobaan.");
   }
 
   const handleSendWATagihan = (trx: TransaksiSewa) => {
@@ -316,9 +338,17 @@ export default function Transaksi() {
 
     try {
       // 1. Siapkan Payload Dasar
+      // Simpan salinan nama penyewa pada transaksi agar nota publik tetap
+      // menampilkan nama tanpa perlu membuka data kontak/alamat penyewa.
+      const penyewaNama =
+        penyewaList.find((p) => p.id === form.penyewa)?.nama ||
+        list.find((t) => t.penyewa === form.penyewa)?.expand?.penyewa?.nama ||
+        "";
+
       const payload: any = {
         sawah: form.sawah,
         penyewa: form.penyewa,
+        penyewa_nama: penyewaNama,
         tanggal_mulai: form.tanggal_mulai,
         harga_sewa: cleanHarga,
         jumlah_musim: jumlahMusim,
