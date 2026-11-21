@@ -2,9 +2,10 @@
 User-agent: *
 Allow: /
 
-# Larang mesin pencari merayapi halaman dashboard/admin privat
-Disallow: /admin/
-Disallow: /login/
+# Larang mesin pencari merayapi halaman dashboard/admin privat,
+# halaman login, dan nota digital (halaman privat per transaksi)
+Disallow: /admin
+Disallow: /login
+Disallow: /nota/
 
-# Tentukan lokasi peta situs (sitemap) jika Anda memilikinya nanti
-# Sitemap: https://sawahku.novelwardah.com/sitemap.xml
+Sitemap: https://sawahku.novelwardah.com/sitemap.xml

@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { ROUTES } from "../routes";
 import { Sprout, Home, ArrowLeft } from "lucide-react";
 import useSetting from "../hooks/useSetting";
@@ -8,6 +9,10 @@ export default function NotFound() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 flex items-center justify-center p-6 text-white font-sans selection:bg-emerald-500 selection:text-white">
+      <Helmet>
+        <title>Halaman Tidak Ditemukan - {setting?.nama_aplikasi || "SawahKu"}</title>
+        <meta name="robots" content="noindex, follow" />
+      </Helmet>
       <div className="max-w-md w-full text-center space-y-6 bg-white/5 backdrop-blur-xl border border-white/10 p-10 rounded-3xl shadow-2xl">
         
         {/* Logo Ikon */}

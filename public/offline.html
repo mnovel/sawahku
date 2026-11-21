@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#059669" />
+    <title>Tidak Ada Koneksi - SawahKu</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: #f8fafc;
+        color: #1e293b;
+        font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      .card {
+        max-width: 420px;
+        width: 100%;
+        text-align: center;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 24px;
+        padding: 40px 28px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+      }
+      .logo {
+        width: 64px;
+        height: 64px;
+        border-radius: 18px;
+        margin: 0 auto 20px;
+        display: block;
+      }
+      h1 { font-size: 20px; margin: 0 0 8px; }
+      p { font-size: 13px; line-height: 1.6; color: #64748b; margin: 0 0 24px; }
+      button {
+        font: inherit;
+        font-weight: 700;
+        font-size: 13px;
+        padding: 12px 22px;
+        border: 0;
+        border-radius: 12px;
+        background: #059669;
+        color: #fff;
+        cursor: pointer;
+      }
+      button:hover { background: #047857; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <img class="logo" src="/icons/icon-192.png" alt="Logo SawahKu" />
+      <h1>Tidak Ada Koneksi Internet</h1>
+      <p>
+        Halaman ini belum tersimpan untuk akses offline. Sambungkan kembali
+        perangkat Anda ke internet, lalu muat ulang halaman.
+      </p>
+      <button onclick="location.reload()">Coba Lagi</button>
+    </div>
+  </body>
+</html>

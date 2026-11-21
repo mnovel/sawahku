@@ -76,3 +76,29 @@ Catatan:
 - Container PocketBase berjalan sebagai UID/GID `999:987` (pbuser) agar kepemilikan
   file data tetap konsisten.
 - `pb_migrations/` di-mount read-only dan dijalankan otomatis saat container start.
+
+## SEO
+
+- Tag per halaman diatur `react-helmet-async`: Landing (`title`, description,
+  keywords, canonical, geo, JSON-LD `WebSite` + `LocalBusiness` dari data
+  Pengaturan), sedangkan halaman admin/login/nota memakai `noindex`.
+- `index.html` menyimpan tag statis untuk crawler yang tidak menjalankan
+  JavaScript (pratinjau tautan WhatsApp/Facebook) serta link manifest PWA.
+  Jangan menambahkan `og:*` dari Helmet lagi agar tag tidak ganda.
+- `public/robots.txt` melarang `/admin`, `/login`, `/nota/`; `public/sitemap.xml`
+  hanya memuat beranda. Perbarui domain/lastmod di kedua file bila domain berubah.
+
+## PWA (installable + offline)
+
+- `public/manifest.webmanifest` + ikon PNG di `public/icons/`
+  (192, 512, maskable 512, apple-touch 180 — dibuat dari `public/favicon.svg`).
+- `public/sw.js`: navigasi network-first dengan fallback app shell lalu
+  `public/offline.html`; aset `stale-while-revalidate`; request `/api/*` tidak
+  pernah di-cache. Naikkan `VERSION` di `sw.js` bila strategi cache berubah.
+- Service worker didaftarkan di `src/main.tsx` hanya saat build produksi, dengan
+  `?v=<nama bundle ber-hash>` sebagai versi agar tiap deploy memakai URL baru
+  (menghindari cache CDN yang basi).
+- `deploy/nginx/default.conf` menetapkan MIME `application/manifest+json` dan
+  `Cache-Control: no-cache` untuk manifest/service worker. `deploy/deploy.sh`
+  me-recreate container `web` supaya bind mount folder `deploy/nginx` terpasang
+  ulang.

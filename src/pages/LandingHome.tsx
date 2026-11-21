@@ -232,35 +232,60 @@ export default function LandingHome() {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="canonical" href={pageUrl} />
 
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content={pageUrl} />
-        <meta property="og:title" content={pageTitle} />
-        <meta property="og:description" content={pageDescription} />
-        <meta
-          property="og:site_name"
-          content={setting?.nama_aplikasi || "SawahKu"}
-        />
-        <meta property="og:locale" content="id_ID" />
-        {pageOgImage && <meta property="og:image" content={pageOgImage} />}
-
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={pageTitle} />
-        <meta name="twitter:description" content={pageDescription} />
-        {pageOgImage && <meta name="twitter:image" content={pageOgImage} />}
+        {/* Open Graph/Twitter sengaja tidak ditulis ulang di sini: tag statis
+            di index.html dipakai crawler media sosial (tanpa JavaScript) dan
+            menambahkannya lagi akan membuat tag og:* ganda. */}
 
         <meta name="geo.region" content="ID-JI" />
         <meta name="geo.placename" content="Pasuruan" />
         <meta name="geo.position" content="-7.6583;112.9261" />
         <meta name="ICBM" content="-7.6583, 112.9261" />
 
+        {/* Structured data: WebSite + LocalBusiness agar mesin pencari
+            mengenali entitas pengelola lahan dan lokasinya. */}
         <script type="application/ld+json">
           {JSON.stringify({
-            "@context": "http://schema.org",
-            "@type": "WebSite",
-            name: setting?.nama_aplikasi || "SawahKu",
-            url: pageUrl,
-            description: pageDescription,
-            image: pageOgImage,
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "WebSite",
+                "@id": `${pageUrl}#website`,
+                name: setting?.nama_aplikasi || "SawahKu",
+                url: pageUrl,
+                description: pageDescription,
+                inLanguage: "id-ID",
+                image: pageOgImage,
+              },
+              {
+                "@type": "LocalBusiness",
+                "@id": `${pageUrl}#pengelola`,
+                name:
+                  setting?.nama_pengelola ||
+                  setting?.nama_aplikasi ||
+                  "SawahKu",
+                url: pageUrl,
+                description: pageDescription,
+                image: pageOgImage,
+                areaServed: {
+                  "@type": "AdministrativeArea",
+                  name: "Pasuruan, Jawa Timur",
+                },
+                ...(setting?.nomor_wa
+                  ? { telephone: setting.nomor_wa }
+                  : {}),
+                ...(setting?.alamat
+                  ? {
+                      address: {
+                        "@type": "PostalAddress",
+                        streetAddress: setting.alamat,
+                        addressLocality: "Pasuruan",
+                        addressRegion: "Jawa Timur",
+                        addressCountry: "ID",
+                      },
+                    }
+                  : {}),
+              },
+            ],
           })}
         </script>
       </Helmet>

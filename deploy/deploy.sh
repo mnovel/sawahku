@@ -26,7 +26,9 @@ tar czf - dist docker-compose.yml deploy pb_migrations \
       rm -rf '$REMOTE_DIR/.deploy-staging'"
 
 echo "== 3. Pastikan container jalan"
-ssh "$SERVER" "cd '$REMOTE_DIR' && docker compose up -d && docker compose ps"
+# Web di-recreate agar bind mount folder nginx selalu menunjuk file terbaru
+# (file config yang diganti membuat inode lama tetap terpasang).
+ssh "$SERVER" "cd '$REMOTE_DIR' && docker compose up -d && docker compose up -d --force-recreate web && docker compose exec -T web nginx -t && docker compose ps"
 
 echo "== 4. Cek HTTP"
 # Akses publik lewat Cloudflare Tunnel ke 127.0.0.1:8081 (bukan vhost nginx host).
