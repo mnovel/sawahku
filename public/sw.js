@@ -4,36 +4,27 @@
  *    lalu /offline.html bila benar-benar offline.
  *  - Aset statis (JS/CSS/ikon/font): stale-while-revalidate.
  *  - API PocketBase (/api/*): tidak pernah di-cache.
+ *
+ * Versi cache diambil dari ?v=<hash bundle> saat registrasi, jadi tiap deploy
+ * memakai cache baru dan cache lama dibersihkan otomatis pada activate.
  */
 
-const VERSION = "v1";
+const VERSION = new URL(self.location.href).searchParams.get("v") || "dev";
 const PAGE_CACHE = `sawahku-pages-${VERSION}`;
 const ASSET_CACHE = `sawahku-assets-${VERSION}`;
 
-const PRECACHE = [
-  "/",
-  "/offline.html",
-  "/manifest.webmanifest",
-  "/favicon.svg",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png",
-  "/icons/icon-maskable-512.png",
-  "/icons/apple-touch-icon.png",
-];
+const PRECACHE = ["/", "/offline.html", "/favicon.svg", "/icons/icon-192.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(PAGE_CACHE).then((cache) =>
-      Promise.all(
-        PRECACHE.map((url) =>
-          cache.add(url).catch(() => {
-            /* lewati aset yang gagal diambil saat instalasi */
-          }),
-        ),
-      ),
-    ),
+    caches
+      .open(PAGE_CACHE)
+      // Aset yang gagal diambil saat instalasi dilewati, instalasi tetap jalan.
+      .then((cache) =>
+        Promise.allSettled(PRECACHE.map((url) => cache.add(url))),
+      )
+      .then(() => self.skipWaiting()),
   );
-  self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
@@ -43,7 +34,12 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key !== PAGE_CACHE && key !== ASSET_CACHE)
+            .filter(
+              (key) =>
+                key.startsWith("sawahku-") &&
+                key !== PAGE_CACHE &&
+                key !== ASSET_CACHE,
+            )
             .map((key) => caches.delete(key)),
         ),
       )
@@ -51,25 +47,19 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-self.addEventListener("message", (event) => {
-  if (event.data === "SKIP_WAITING") self.skipWaiting();
-});
-
-function isStaticAsset(request, url) {
-  if (url.pathname.startsWith("/assets/")) return true;
-  return ["script", "style", "image", "font"].includes(request.destination);
-}
-
 async function networkFirstNavigation(request) {
   const cache = await caches.open(PAGE_CACHE);
   try {
     const response = await fetch(request);
-    if (response && response.ok) cache.put("/", response.clone());
+    if (response.ok) cache.put("/", response.clone());
     return response;
   } catch {
-    const cached = (await cache.match(request)) || (await cache.match("/"));
-    if (cached) return cached;
-    return (await cache.match("/offline.html")) || Response.error();
+    // Semua rute SPA berbagi app shell yang sama, jadi cukup satu entri "/".
+    return (
+      (await cache.match("/")) ||
+      (await cache.match("/offline.html")) ||
+      Response.error()
+    );
   }
 }
 
@@ -77,14 +67,15 @@ async function staleWhileRevalidate(request) {
   const cache = await caches.open(ASSET_CACHE);
   const cached = await cache.match(request);
 
-  const network = fetch(request)
-    .then((response) => {
-      if (response && response.ok) cache.put(request, response.clone());
+  const network = fetch(request).then(
+    (response) => {
+      if (response.ok) cache.put(request, response.clone());
       return response;
-    })
-    .catch(() => null);
+    },
+    () => Response.error(),
+  );
 
-  return cached || (await network) || Response.error();
+  return cached || network;
 }
 
 self.addEventListener("fetch", (event) => {
@@ -100,7 +91,10 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (isStaticAsset(request, url)) {
+  if (
+    url.pathname.startsWith("/assets/") ||
+    ["script", "style", "image", "font"].includes(request.destination)
+  ) {
     event.respondWith(staleWhileRevalidate(request));
   }
 });

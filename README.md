@@ -94,11 +94,13 @@ Catatan:
   (192, 512, maskable 512, apple-touch 180 — dibuat dari `public/favicon.svg`).
 - `public/sw.js`: navigasi network-first dengan fallback app shell lalu
   `public/offline.html`; aset `stale-while-revalidate`; request `/api/*` tidak
-  pernah di-cache. Naikkan `VERSION` di `sw.js` bila strategi cache berubah.
+  pernah di-cache. Versi cache diambil dari query `?v=` saat registrasi, jadi
+  cache lama terhapus otomatis setiap deploy (tanpa naikkan `VERSION` manual).
 - Service worker didaftarkan di `src/main.tsx` hanya saat build produksi, dengan
   `?v=<nama bundle ber-hash>` sebagai versi agar tiap deploy memakai URL baru
   (menghindari cache CDN yang basi).
 - `deploy/nginx/default.conf` menetapkan MIME `application/manifest+json` dan
-  `Cache-Control: no-cache` untuk manifest/service worker. `deploy/deploy.sh`
-  me-recreate container `web` supaya bind mount folder `deploy/nginx` terpasang
-  ulang.
+  `Cache-Control: no-cache` untuk manifest/service worker. Cloudflare menimpa
+  `Cache-Control` untuk `.js`, karena itu registrasi SW memakai `?v=` (cache key
+  CDN ikut berubah tiap deploy). `deploy/deploy.sh` memuat ulang nginx
+  (`nginx -t` lalu `nginx -s reload`) setelah menyalin config.

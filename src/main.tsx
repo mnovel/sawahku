@@ -8,16 +8,16 @@ import App from './App.tsx'
 // menyajikan aset dari cache.
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    // Nama bundle ber-hash dipakai sebagai versi agar setiap deploy memakai
-    // URL service worker baru (menghindari cache CDN yang basi).
+    // Nama bundle ber-hash dipakai sebagai versi URL & nama cache agar tiap
+    // deploy memakai SW/cache baru (menghindari cache CDN yang basi).
     const buildId =
       document
         .querySelector<HTMLScriptElement>('script[type="module"][src^="/assets/"]')
         ?.src.split('/')
-        .pop() ?? 'v1'
+        .pop() ?? ''
 
     navigator.serviceWorker
-      .register(`/sw.js?v=${buildId}`, { scope: '/' })
+      .register(buildId ? `/sw.js?v=${buildId}` : '/sw.js', { scope: '/' })
       .catch((err) => {
         console.warn('Service worker gagal didaftarkan:', err)
       })

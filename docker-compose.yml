@@ -46,8 +46,8 @@ services:
       - pocketbase
     volumes:
       - ./dist:/usr/share/nginx/html:ro
-      # Mount folder (bukan file tunggal) agar perubahan config terlihat
-      # setelah deploy tanpa perlu recreate container.
+      # Mount folder (bukan file tunggal) agar perubahan config terlihat;
+      # deploy memuat ulang nginx tanpa me-restart container.
       - ./deploy/nginx:/etc/nginx/conf.d:ro
     ports:
       - "8081:80"
