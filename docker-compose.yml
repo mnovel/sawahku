@@ -8,8 +8,8 @@
 #   docker compose logs -f        # log
 #   docker compose down           # hentikan
 #
-# Semua port hanya di-bind ke 127.0.0.1; nginx host
-# (sawahku.novelwardah.com) yang meneruskan request ke web:8081.
+# Semua port di-bind ke 0.0.0.0 agar bisa diakses dari LAN;
+# akses publik lewat Cloudflare Tunnel ke web:8081.
 
 name: sawahku
 
@@ -30,7 +30,7 @@ services:
       - ./pb_data:/pb_data
       - ./pb_migrations:/pb_migrations:ro
     ports:
-      - "127.0.0.1:8090:8090"
+      - "8090:8090"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8090/api/health >/dev/null || exit 1"]
       interval: 30s
@@ -48,7 +48,7 @@ services:
       - ./dist:/usr/share/nginx/html:ro
       - ./deploy/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
-      - "127.0.0.1:8081:80"
+      - "8081:80"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null || exit 1"]
       interval: 30s

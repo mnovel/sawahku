@@ -42,9 +42,10 @@ docker-compose.yml
 └── pocketbase ghcr.io/muchobien/pocketbase:0.40.5, data di ./pb_data
 ```
 
-Port hanya di-bind ke `127.0.0.1` (web `8081`, PocketBase `8090`). Akses publik
-memakai Cloudflare Tunnel yang diarahkan ke `http://127.0.0.1:8081`; tidak ada
-vhost nginx host untuk domain ini (nginx host hanya melayani situs lain).
+Port di-bind ke `0.0.0.0` (web `8081`, PocketBase `8090`) agar bisa diakses
+dari LAN. Akses publik memakai Cloudflare Tunnel yang diarahkan ke
+`http://127.0.0.1:8081`; tidak ada vhost nginx host untuk domain ini
+(nginx host hanya melayani situs lain).
 
 ```bash
 npm run build                 # build frontend di lokal
