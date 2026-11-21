@@ -251,7 +251,7 @@ export default function LogBulananModal({
                         {log.foto && (
                           <div className="my-3">
                             <img
-                              src={pb.files.getUrl(log, log.foto)}
+                              src={pb.files.getURL(log, log.foto)}
                               alt="Foto Log"
                               className="w-full max-h-56 object-cover rounded-lg border border-slate-200"
                               loading="lazy"

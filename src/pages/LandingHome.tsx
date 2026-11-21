@@ -54,6 +54,8 @@ interface TransaksiType {
   tanggal_mulai: string;
 }
 
+const currentYear = new Date().getFullYear();
+
 export default function LandingHome() {
   const { setting } = useSetting();
   const { user } = useAuth();
@@ -988,8 +990,7 @@ export default function LandingHome() {
 
         <div className="max-w-7xl mx-auto px-6 pt-6 border-t border-slate-800/80 text-center">
           <p className="text-slate-500 text-xs font-medium">
-            &copy; {new Date().getFullYear()}{" "}
-            {setting?.nama_aplikasi || "SawahKu"}.
+            &copy; {currentYear} {setting?.nama_aplikasi || "SawahKu"}.
           </p>
         </div>
       </footer>

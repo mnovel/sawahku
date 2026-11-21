@@ -156,8 +156,45 @@ export default function Sawah() {
       ? form.harga_sewa.replace(/\./g, "")
       : "0";
 
+    // Baris sertifikat dianggap terisi jika salah satu kolomnya diisi.
+    const sertifikatTerisi = sertifikatList.filter(
+      (cert) =>
+        cert.nib.trim() ||
+        cert.luas.trim() ||
+        cert.url_maps.trim() ||
+        cert.url_bhumi.trim(),
+    );
+
+    // Validasi dilakukan sebelum menulis apa pun, supaya sertifikat lama tidak
+    // terlanjur terhapus ketika data baru ternyata tidak valid.
+    if (!form.nama.trim()) {
+      toast("Nama sawah wajib diisi.", "warning");
+      return;
+    }
+    if (!Number.isFinite(Number(cleanHarga)) || Number(cleanHarga) < 0) {
+      toast("Harga sewa harus berupa angka yang valid.", "warning");
+      return;
+    }
+    if (sertifikatTerisi.some((cert) => !cert.nib.trim())) {
+      toast("NIB wajib diisi pada setiap sertifikat.", "warning");
+      return;
+    }
+
+    const certPayloads = sertifikatTerisi.map((cert) => ({
+      id: cert.id,
+      tipe_hak: cert.tipe_hak,
+      nib: Number(cert.nib),
+      luas: Number(cert.luas || 0),
+      url_maps: cert.url_maps,
+      url_bhumi: cert.url_bhumi,
+    }));
+    if (certPayloads.some((c) => Number.isNaN(c.nib) || Number.isNaN(c.luas))) {
+      toast("NIB dan luas sertifikat harus berupa angka.", "warning");
+      return;
+    }
+
     const sawahPayload = {
-      nama: form.nama,
+      nama: form.nama.trim(),
       luas_total: calculatedTotalLuas,
       lokasi: form.lokasi,
       harga_sewa: Number(cleanHarga),
@@ -170,13 +207,6 @@ export default function Sawah() {
 
       if (editId) {
         await pb.collection("sawah").update(editId, sawahPayload);
-
-        const oldSertifikat = await pb.collection("sertifikat").getFullList({
-          filter: `sawah="${editId}"`,
-        });
-        for (const cert of oldSertifikat) {
-          await pb.collection("sertifikat").delete(cert.id);
-        }
       } else {
         const newSawah = await pb.collection("sawah").create({
           ...sawahPayload,
@@ -185,16 +215,34 @@ export default function Sawah() {
         sawahId = newSawah.id;
       }
 
-      for (const cert of sertifikatList) {
-        if (!cert.nib) continue;
-        await pb.collection("sertifikat").create({
+      // Sinkronkan sertifikat: perbarui yang sudah ada, buat yang baru, dan
+      // hapus hanya yang benar-benar dihapus pengguna.
+      const certLama = await pb.collection("sertifikat").getFullList({
+        filter: `sawah="${sawahId}"`,
+      });
+      const idDipertahankan = new Set(
+        certPayloads.map((cert) => cert.id).filter(Boolean),
+      );
+      for (const old of certLama) {
+        if (!idDipertahankan.has(old.id)) {
+          await pb.collection("sertifikat").delete(old.id);
+        }
+      }
+
+      for (const cert of certPayloads) {
+        const data = {
           sawah: sawahId,
           tipe_hak: cert.tipe_hak,
-          nib: Number(cert.nib),
-          luas: Number(cert.luas || 0),
+          nib: cert.nib,
+          luas: cert.luas,
           url_maps: cert.url_maps,
           url_bhumi: cert.url_bhumi,
-        });
+        };
+        if (cert.id) {
+          await pb.collection("sertifikat").update(cert.id, data);
+        } else {
+          await pb.collection("sertifikat").create(data);
+        }
       }
 
       setIsModalOpen(false);
@@ -236,6 +284,19 @@ export default function Sawah() {
       isDestructive: true,
       onConfirm: async () => {
         try {
+          // Cegah penghapusan yang akan menghapus riwayat transaksi penyewa
+          // (PocketBase menghapus record yang mereferensikan secara cascade).
+          const trxTerkait = await pb
+            .collection("transaksi_sewa")
+            .getList(1, 1, { filter: `sawah="${id}"` });
+          if (trxTerkait.totalItems > 0) {
+            toast(
+              "Sawah tidak bisa dihapus karena masih memiliki riwayat transaksi sewa.",
+              "error",
+            );
+            return;
+          }
+
           const certs = await pb
             .collection("sertifikat")
             .getFullList({ filter: `sawah="${id}"` });
@@ -245,7 +306,7 @@ export default function Sawah() {
           await pb.collection("sawah").delete(id);
           toast("Data sawah berhasil dihapus.", "info");
           load();
-        } catch (err) {
+        } catch {
           toast("Gagal menghapus sawah karena terikat transaksi.", "error");
         }
       },
@@ -272,7 +333,16 @@ export default function Sawah() {
     return matchSearch && matchStatus;
   });
 
-  const totalPages = Math.ceil(filteredList.length / itemsPerPage);
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredList.length / itemsPerPage),
+  );
+
+  // Setelah data dihapus, halaman aktif bisa melewati jumlah halaman.
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentItems = filteredList.slice(
     startIndex,

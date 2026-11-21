@@ -4,6 +4,15 @@ import { ROUTES } from "../routes";
 import { pb } from "../lib/pb";
 import { useNotify } from "../contexts/NotificationContext";
 import {
+  formatDate,
+  calculateDuration,
+  calculateMonthCount,
+  getTodayString,
+} from "../lib/formatters";
+import { getFaseLabel } from "../lib/constants";
+import { sendWATagihan } from "../lib/whatsapp";
+import type { TransaksiSewa, LogBulanan, RiwayatBayar } from "../types";
+import {
   Sprout,
   Users,
   Activity,
@@ -20,119 +29,8 @@ import {
   Calendar,
   Image as ImageIcon,
   Hourglass,
-  ClipboardList, // <-- Tambahan Ikon
+  ClipboardList,
 } from "lucide-react";
-
-interface Transaksi {
-  id: string;
-  tanggal_mulai: string;
-  tanggal_jatuh_tempo?: string;
-  harga_sewa: number;
-  status: string;
-  status_bayar: string;
-  nominal_dibayar: number;
-  expand?: {
-    sawah?: { id: string; nama: string; luas_total: number };
-    penyewa?: { id: string; nama: string; kontak?: string };
-  };
-}
-
-interface LogBulanan {
-  id: string;
-  periode: string;
-  fase: string;
-  keterangan: string;
-  foto?: string;
-  expand?: {
-    transaksi?: {
-      expand?: {
-        sawah?: { nama: string };
-        penyewa?: { nama: string };
-      };
-    };
-  };
-}
-
-interface RiwayatBayar {
-  id: string;
-  nominal: number;
-  tanggal: string;
-}
-
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return "-";
-  return new Date(dateStr).toLocaleDateString("id-ID", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-};
-
-const formatWA = (phone: string) => {
-  if (!phone) return "";
-  let cleaned = phone.replace(/\D/g, "");
-  if (cleaned.startsWith("0")) {
-    cleaned = "62" + cleaned.slice(1);
-  }
-  return cleaned;
-};
-
-// Fungsi menghitung total bulan berjalan
-const calculateMonthCount = (startDateStr: string) => {
-  if (!startDateStr) return 0;
-  const start = new Date(startDateStr);
-  const end = new Date();
-
-  let months =
-    (end.getFullYear() - start.getFullYear()) * 12 +
-    (end.getMonth() - start.getMonth());
-  let days = end.getDate() - start.getDate();
-
-  if (days < 0) {
-    months--;
-  }
-  return Math.max(0, months);
-};
-
-const calculateDuration = (startDateStr: string) => {
-  if (!startDateStr) return "-";
-  const start = new Date(startDateStr);
-  const end = new Date();
-
-  let months =
-    (end.getFullYear() - start.getFullYear()) * 12 +
-    (end.getMonth() - start.getMonth());
-  let days = end.getDate() - start.getDate();
-
-  if (days < 0) {
-    months--;
-    const prevMonth = new Date(end.getFullYear(), end.getMonth(), 0);
-    days += prevMonth.getDate();
-  }
-
-  if (months < 0) return "0 Hari";
-
-  const parts = [];
-  if (months > 0) parts.push(`${months} bln`);
-  if (days > 0 || parts.length === 0) parts.push(`${days} hr`);
-
-  return parts.join(" ");
-};
-
-const getFaseLabel = (fase: string) => {
-  switch (fase) {
-    case "tanam":
-      return { label: "Tanam", bg: "bg-emerald-100 text-emerald-700" };
-    case "perawatan":
-      return { label: "Perawatan", bg: "bg-blue-100 text-blue-700" };
-    case "panen":
-      return { label: "Panen", bg: "bg-amber-100 text-amber-700" };
-    case "kosong":
-      return { label: "Kosong", bg: "bg-slate-100 text-slate-600" };
-    default:
-      return { label: "Lainnya", bg: "bg-purple-100 text-purple-700" };
-  }
-};
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -149,9 +47,9 @@ export default function Dashboard() {
     totalLuasLahan: 0,
   });
 
-  const [activeTrx, setActiveTrx] = useState<Transaksi[]>([]);
-  const [overdueTrx, setOverdueTrx] = useState<Transaksi[]>([]);
-  const [longTermTrx, setLongTermTrx] = useState<Transaksi[]>([]);
+  const [activeTrx, setActiveTrx] = useState<TransaksiSewa[]>([]);
+  const [overdueTrx, setOverdueTrx] = useState<TransaksiSewa[]>([]);
+  const [longTermTrx, setLongTermTrx] = useState<TransaksiSewa[]>([]);
   const [recentLogs, setRecentLogs] = useState<LogBulanan[]>([]);
 
   useEffect(() => {
@@ -160,6 +58,8 @@ export default function Dashboard() {
         setLoading(true);
         const now = new Date();
         const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+        const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const nextMonthPrefix = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}`;
 
         // 1. Data Sawah & Okupansi
         let sawahList: any[] = [];
@@ -188,11 +88,11 @@ export default function Dashboard() {
         }
 
         // 3. Transaksi Sewa Aktif
-        let trxAktif: Transaksi[] = [];
+        let trxAktif: TransaksiSewa[] = [];
         try {
           trxAktif = await pb
             .collection("transaksi_sewa")
-            .getFullList<Transaksi>({
+            .getFullList<TransaksiSewa>({
               filter: 'status="aktif"',
               expand: "sawah,penyewa",
             });
@@ -230,17 +130,18 @@ export default function Dashboard() {
           const bayarBulanIni = await pb
             .collection("riwayat_bayar")
             .getFullList<RiwayatBayar>({
-              filter: `tanggal >= "${currentMonthPrefix}-01"`,
+              // Batas atas wajib ada, jika tidak pembayaran bertanggal bulan
+              // berikutnya ikut terhitung sebagai kas bulan ini.
+              filter: `tanggal >= "${currentMonthPrefix}-01" && tanggal < "${nextMonthPrefix}-01"`,
             });
           cashInThisMonth = bayarBulanIni.reduce(
             (sum, item) => sum + item.nominal,
             0,
           );
-        } catch {
-          cashInThisMonth = trxAktif.reduce(
-            (sum, item) => sum + (item.nominal_dibayar || 0),
-            0,
-          );
+        } catch (err) {
+          // Jangan mencampur total sepanjang waktu dengan metrik bulan ini.
+          console.error("Gagal memuat arus kas bulan ini:", err);
+          cashInThisMonth = 0;
         }
 
         // 8. Feed Aktivitas Terbaru (Log Bulanan)
@@ -280,33 +181,10 @@ export default function Dashboard() {
     fetchDashboardData();
   }, []);
 
-  const sendWATagihan = (trx: Transaksi) => {
-    const penyewaNama = trx.expand?.penyewa?.nama || "Penyewa";
-    const sawahNama = trx.expand?.sawah?.nama || "Sawah";
-    const kontak = trx.expand?.penyewa?.kontak || "";
-    const sisa = trx.harga_sewa - (trx.nominal_dibayar || 0);
-    const jatuhTempo = trx.tanggal_jatuh_tempo
-      ? formatDate(trx.tanggal_jatuh_tempo)
-      : "-";
-    const linkNota = `${window.location.origin}${ROUTES.NOTA_DETAIL(trx.id)}`;
-
-    if (!kontak) {
+  const handleSendWATagihan = (trx: TransaksiSewa) => {
+    sendWATagihan(trx, () => {
       toast("Nomor kontak penyewa belum diisi pada data Penyewa!", "warning");
-      return;
-    }
-
-    const pesan =
-      `Halo Bp/Ibu *${penyewaNama}*,\n\n` +
-      `Sekadar mengingatkan mengenai tagihan sewa sawah *${sawahNama}*.\n\n` +
-      `• Total Sewa: Rp ${trx.harga_sewa.toLocaleString("id-ID")}\n` +
-      `• Terbayar: Rp ${(trx.nominal_dibayar || 0).toLocaleString("id-ID")}\n` +
-      `• *Sisa Tagihan: Rp ${sisa.toLocaleString("id-ID")}*\n` +
-      `• Tanggal Jatuh Tempo: *${jatuhTempo}*\n\n` +
-      `Rincian nota digital dapat diakses melalui link berikut:\n${linkNota}\n\n` +
-      `Terima kasih. 🙏`;
-
-    const waUrl = `https://wa.me/${formatWA(kontak)}?text=${encodeURIComponent(pesan)}`;
-    window.open(waUrl, "_blank");
+    });
   };
 
   const occupancyRate =
@@ -478,7 +356,7 @@ export default function Dashboard() {
           <div className="space-y-3">
             {overdueTrx.map((trx) => {
               const sisa = trx.harga_sewa - (trx.nominal_dibayar || 0);
-              const todayStr = new Date().toISOString().split("T")[0];
+              const todayStr = getTodayString();
               const isPastDue =
                 trx.tanggal_jatuh_tempo && trx.tanggal_jatuh_tempo < todayStr;
 
@@ -511,7 +389,7 @@ export default function Dashboard() {
                     </p>
                   </div>
                   <button
-                    onClick={() => sendWATagihan(trx)}
+                    onClick={() => handleSendWATagihan(trx)}
                     className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer shrink-0"
                   >
                     <MessageCircle size={16} /> Tagih WA

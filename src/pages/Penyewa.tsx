@@ -127,7 +127,16 @@ export default function Penyewa() {
     return matchSearch && matchStatus;
   });
 
-  const totalPages = Math.ceil(filteredList.length / itemsPerPage);
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredList.length / itemsPerPage),
+  );
+
+  // Setelah data dihapus, halaman aktif bisa melewati jumlah halaman.
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentItems = filteredList.slice(
     startIndex,
@@ -150,7 +159,7 @@ export default function Penyewa() {
         "success",
       );
       load();
-    } catch (err) {
+    } catch {
       toast("Gagal menyimpan data penyewa.", "error");
     }
   }
@@ -163,10 +172,23 @@ export default function Penyewa() {
       isDestructive: true,
       onConfirm: async () => {
         try {
+          // Menghapus penyewa akan meng-cascade transaksi & riwayat bayarnya,
+          // jadi hentikan jika penyewa masih punya riwayat transaksi.
+          const trxTerkait = await pb
+            .collection("transaksi_sewa")
+            .getList(1, 1, { filter: `penyewa="${id}"` });
+          if (trxTerkait.totalItems > 0) {
+            toast(
+              "Penyewa tidak bisa dihapus karena masih memiliki riwayat transaksi. Non-aktifkan saja datanya.",
+              "error",
+            );
+            return;
+          }
+
           await pb.collection("penyewa").delete(id);
           toast("Data penyewa berhasil dihapus.", "info");
           load();
-        } catch (err) {
+        } catch {
           toast(
             "Gagal menghapus penyewa. Penyewa mungkin masih memiliki riwayat transaksi.",
             "error",

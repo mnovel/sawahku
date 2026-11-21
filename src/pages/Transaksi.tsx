@@ -4,15 +4,26 @@ import { useNotify } from "../contexts/NotificationContext";
 import { useSearchParams } from "react-router-dom";
 import { ROUTES } from "../routes";
 import {
+  formatDate,
+  formatRupiah,
+  getTodayString,
+  calculateDuration,
+} from "../lib/formatters";
+import { getFaseStyle } from "../lib/constants";
+import { sendWATagihan } from "../lib/whatsapp";
+import type {
+  Sawah,
+  Penyewa,
+  TransaksiSewa,
+  LogBulanan,
+  RiwayatBayar,
+} from "../types";
+import {
   Plus,
   ClipboardList,
   CheckCircle2,
   User,
   Sprout,
-  Droplets,
-  Wheat,
-  PauseCircle,
-  FileText,
   Pencil,
   Ban,
   Search,
@@ -34,130 +45,18 @@ import LogBulananModal from "../components/transaksi/LogBulananModal";
 import NotaPreviewModal from "../components/transaksi/NotaPreviewModal";
 import TandaTanganModal from "../components/transaksi/TandaTanganModal";
 
-interface Sawah {
-  id: string;
-  nama: string;
-  harga_sewa: number;
-  status?: string;
+// PocketBase menolak field yang tidak dikenal di koleksinya. Pesan errornya
+// bisa berbentuk validasi field maupun error SQL, jadi keduanya dicek.
+function isFieldJumlahMusimError(err: unknown): boolean {
+  const detail = [
+    (err as any)?.message,
+    (err as any)?.response?.data
+      ? JSON.stringify((err as any).response.data)
+      : "",
+    String(err ?? ""),
+  ].join(" ");
+  return /jumlah_musim/i.test(detail);
 }
-interface Penyewa {
-  id: string;
-  nama: string;
-  kontak?: string;
-  status?: string;
-}
-interface Transaksi {
-  id: string;
-  expand?: { sawah: Sawah; penyewa: Penyewa };
-  tanggal_mulai: string;
-  tanggal_panen: string;
-  tanggal_jatuh_tempo?: string;
-  harga_sewa: number;
-  status: string;
-  status_bayar: string;
-  nominal_dibayar: number;
-}
-interface LogBulanan {
-  id: string;
-  periode: string;
-  fase: string;
-  keterangan: string;
-  foto?: string;
-}
-interface RiwayatBayar {
-  id: string;
-  nominal: number;
-  tanggal: string;
-  keterangan: string;
-}
-
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return "-";
-  return new Date(dateStr).toLocaleDateString("id-ID", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-};
-const formatRupiah = (val: number | string) => {
-  const numStr = val.toString().replace(/\D/g, "");
-  if (!numStr) return "";
-  return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-};
-const getTodayString = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
-const formatWA = (phone: string) => {
-  if (!phone) return "";
-  let cleaned = phone.replace(/\D/g, "");
-  if (cleaned.startsWith("0")) cleaned = "62" + cleaned.slice(1);
-  return cleaned;
-};
-const calculateDuration = (startDateStr: string, endDateStr: string | null) => {
-  if (!startDateStr) return "-";
-  const start = new Date(startDateStr);
-  const end = endDateStr ? new Date(endDateStr) : new Date();
-  let months =
-    (end.getFullYear() - start.getFullYear()) * 12 +
-    (end.getMonth() - start.getMonth());
-  let days = end.getDate() - start.getDate();
-  if (days < 0) {
-    months--;
-    const prevMonth = new Date(end.getFullYear(), end.getMonth(), 0);
-    days += prevMonth.getDate();
-  }
-  if (months < 0) return "0 Hari";
-  const parts = [];
-  if (months > 0) parts.push(`${months} bln`);
-  if (days > 0 || parts.length === 0) parts.push(`${days} hr`);
-  return parts.join(" ");
-};
-
-const getFaseStyle = (fase: string) => {
-  switch (fase) {
-    case "tanam":
-      return {
-        color: "text-emerald-600",
-        bg: "bg-emerald-100",
-        border: "border-emerald-200",
-        icon: <Sprout size={16} />,
-        label: "Tanam",
-      };
-    case "perawatan":
-      return {
-        color: "text-blue-600",
-        bg: "bg-blue-100",
-        border: "border-blue-200",
-        icon: <Droplets size={16} />,
-        label: "Perawatan",
-      };
-    case "panen":
-      return {
-        color: "text-amber-600",
-        bg: "bg-amber-100",
-        border: "border-amber-200",
-        icon: <Wheat size={16} />,
-        label: "Panen",
-      };
-    case "kosong":
-      return {
-        color: "text-slate-500",
-        bg: "bg-slate-100",
-        border: "border-slate-200",
-        icon: <PauseCircle size={16} />,
-        label: "Kosong",
-      };
-    default:
-      return {
-        color: "text-purple-600",
-        bg: "bg-purple-100",
-        border: "border-purple-200",
-        icon: <FileText size={16} />,
-        label: "Lainnya",
-      };
-  }
-};
 
 export default function Transaksi() {
   const { toast, confirm } = useNotify();
@@ -176,7 +75,7 @@ export default function Transaksi() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(10); // Pilihan data per halaman mirip layout Sawah
 
-  const [list, setList] = useState<Transaksi[]>([]);
+  const [list, setList] = useState<TransaksiSewa[]>([]);
   const [sawahList, setSawahList] = useState<Sawah[]>([]);
   const [penyewaList, setPenyewaList] = useState<Penyewa[]>([]);
   const [loading, setLoading] = useState(true);
@@ -189,12 +88,13 @@ export default function Transaksi() {
     tanggal_mulai: "",
     tanggal_jatuh_tempo: "",
     harga_sewa: "",
+    jumlah_musim: "1",
     status_bayar: "belum_bayar",
     nominal_dibayar: "",
   });
   const [editId, setEditId] = useState<string | null>(null);
 
-  const [selectedTrx, setSelectedTrx] = useState<Transaksi | null>(null);
+  const [selectedTrx, setSelectedTrx] = useState<TransaksiSewa | null>(null);
   const [logList, setLogList] = useState<LogBulanan[]>([]);
   const [logForm, setLogForm] = useState({
     periode: "",
@@ -205,10 +105,10 @@ export default function Transaksi() {
   const [editLogId, setEditLogId] = useState<string | null>(null);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
 
-  const [notaTrx, setNotaTrx] = useState<Transaksi | null>(null);
+  const [notaTrx, setNotaTrx] = useState<TransaksiSewa | null>(null);
 
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
-  const [payTrx, setPayTrx] = useState<Transaksi | null>(null);
+  const [payTrx, setPayTrx] = useState<TransaksiSewa | null>(null);
   const [payList, setPayList] = useState<RiwayatBayar[]>([]);
   const [payForm, setPayForm] = useState({
     tanggal: getTodayString(),
@@ -236,7 +136,10 @@ export default function Transaksi() {
         sortOrder === "desc" ? "-tanggal_mulai" : "tanggal_mulai";
       const trxData = await pb
         .collection("transaksi_sewa")
-        .getFullList<Transaksi>({ sort: sortQuery, expand: "sawah,penyewa" });
+        .getFullList<TransaksiSewa>({
+          sort: sortQuery,
+          expand: "sawah,penyewa",
+        });
       const sawahData = await pb.collection("sawah").getFullList<Sawah>();
       const penyewaData = await pb.collection("penyewa").getFullList<Penyewa>();
       setList(trxData);
@@ -278,6 +181,13 @@ export default function Transaksi() {
   });
 
   const totalPages = Math.ceil(filteredList.length / itemsPerPage) || 1;
+
+  // Setelah data dihapus/berubah, halaman aktif bisa melewati jumlah halaman
+  // sehingga tabel tampak kosong. Kembalikan ke halaman terakhir yang ada.
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentItems = filteredList.slice(
     startIndex,
@@ -291,36 +201,60 @@ export default function Transaksi() {
     (s) => s.status === "tersedia" || s.id === form.sawah,
   );
 
-  const sendWATagihan = (trx: Transaksi) => {
-    const penyewaNama = trx.expand?.penyewa?.nama || "Penyewa";
-    const sawahNama = trx.expand?.sawah?.nama || "Sawah";
-    const kontak = trx.expand?.penyewa?.kontak || "";
-    const sisa = trx.harga_sewa - (trx.nominal_dibayar || 0);
-    const jatuhTempo = trx.tanggal_jatuh_tempo
-      ? formatDate(trx.tanggal_jatuh_tempo)
-      : "-";
-    const linkNota = `${window.location.origin}${ROUTES.NOTA_DETAIL(trx.id)}`;
+  // Samakan status sawah dengan kondisi transaksi aktifnya. Dipakai setiap
+  // kali status transaksi berubah agar status sawah tidak bergantung pada
+  // urutan request yang kebetulan berhasil.
+  async function syncSawahStatus(sawahId?: string) {
+    if (!sawahId) return;
+    try {
+      const aktif = await pb.collection("transaksi_sewa").getList(1, 1, {
+        filter: `sawah="${sawahId}" && status="aktif"`,
+      });
+      await pb.collection("sawah").update(sawahId, {
+        status: aktif.totalItems > 0 ? "disewa" : "tersedia",
+      });
+    } catch (err) {
+      console.error("Gagal menyinkronkan status sawah:", err);
+    }
+  }
 
-    if (!kontak)
-      return toast(
-        "Nomor kontak penyewa belum diisi pada data Penyewa!",
+  // Simpan transaksi dengan fallback: bila server belum punya field
+  // `jumlah_musim` (migrasi belum dijalankan), coba sekali lagi tanpa field
+  // tersebut supaya transaksi tetap tersimpan.
+  async function simpanTransaksi(
+    id: string | null,
+    data: Record<string, any>,
+  ) {
+    const payload: Record<string, any> = { ...data };
+    try {
+      return id
+        ? await pb.collection("transaksi_sewa").update(id, payload)
+        : await pb.collection("transaksi_sewa").create(payload);
+    } catch (err) {
+      if (!("jumlah_musim" in payload) || !isFieldJumlahMusimError(err)) {
+        throw err;
+      }
+
+      console.warn(
+        "Field jumlah_musim belum ada di PocketBase; menyimpan tanpa jumlah musim.",
+        err,
+      );
+      toast(
+        "Field 'jumlah_musim' belum ada di server. Transaksi tetap disimpan tanpa jumlah musim — jalankan migrasi PocketBase.",
         "warning",
       );
+      delete payload.jumlah_musim;
 
-    const pesan =
-      `Halo Bp/Ibu *${penyewaNama}*,\n\n` +
-      `Sekadar mengingatkan mengenai tagihan sewa sawah *${sawahNama}*.\n\n` +
-      `• Total Sewa: Rp ${trx.harga_sewa.toLocaleString("id-ID")}\n` +
-      `• Terbayar: Rp ${(trx.nominal_dibayar || 0).toLocaleString("id-ID")}\n` +
-      `• *Sisa Tagihan: Rp ${sisa.toLocaleString("id-ID")}*\n` +
-      `• Tanggal Jatuh Tempo: *${jatuhTempo}*\n\n` +
-      `Rincian nota digital dapat diakses melalui link berikut:\n${linkNota}\n\n` +
-      `Terima kasih. 🙏`;
+      return id
+        ? await pb.collection("transaksi_sewa").update(id, payload)
+        : await pb.collection("transaksi_sewa").create(payload);
+    }
+  }
 
-    window.open(
-      `https://wa.me/${formatWA(kontak)}?text=${encodeURIComponent(pesan)}`,
-      "_blank",
-    );
+  const handleSendWATagihan = (trx: TransaksiSewa) => {
+    sendWATagihan(trx, () => {
+      toast("Nomor kontak penyewa belum diisi pada data Penyewa!", "warning");
+    });
   };
 
   function openTambahModal() {
@@ -330,14 +264,16 @@ export default function Transaksi() {
       tanggal_mulai: getTodayString(),
       tanggal_jatuh_tempo: "",
       harga_sewa: "",
+      jumlah_musim: "1",
       status_bayar: "belum_bayar",
       nominal_dibayar: "",
     });
+    setTtdPenyewa("");
     setEditId(null);
     setIsModalOpen(true);
   }
 
-  function handleRenewLease(trx: Transaksi) {
+  function handleRenewLease(trx: TransaksiSewa) {
     const sawahId = trx.expand?.sawah?.id || "";
     const sawahObj = sawahList.find((s) => s.id === sawahId);
     const defaultHarga = sawahObj
@@ -353,9 +289,13 @@ export default function Transaksi() {
       tanggal_mulai: tglMulai,
       tanggal_jatuh_tempo: "",
       harga_sewa: defaultHarga,
+      jumlah_musim: "1",
       status_bayar: "belum_bayar",
       nominal_dibayar: "",
     });
+    // Transaksi perpanjangan adalah kontrak baru, jangan membawa tanda tangan
+    // yang tersisa dari transaksi yang sebelumnya diedit.
+    setTtdPenyewa("");
     setEditId(null);
     setIsModalOpen(true);
   }
@@ -364,9 +304,13 @@ export default function Transaksi() {
     e.preventDefault();
     const cleanHarga = Number(form.harga_sewa.replace(/\./g, ""));
     const cleanDibayar = Number(form.nominal_dibayar.replace(/\./g, ""));
+    const jumlahMusim = Math.floor(Number(form.jumlah_musim) || 1);
 
     if (!form.sawah || !form.penyewa) {
       return toast("Sawah dan Penyewa wajib dipilih.", "warning");
+    }
+    if (!Number.isFinite(jumlahMusim) || jumlahMusim < 1) {
+      return toast("Jumlah musim minimal 1.", "warning");
     }
 
     try {
@@ -376,10 +320,15 @@ export default function Transaksi() {
         penyewa: form.penyewa,
         tanggal_mulai: form.tanggal_mulai,
         harga_sewa: cleanHarga,
+        jumlah_musim: jumlahMusim,
       };
 
-      // 2. Hanya kirim tanggal_jatuh_tempo jika ADA isinya (mencegah error format Date)
-      if (form.tanggal_jatuh_tempo) {
+      // 2. Saat membuat transaksi, tanggal hanya dikirim jika diisi. Saat
+      //    mengedit, nilai kosong tetap dikirim agar jatuh tempo lama benar-
+      //    benar terhapus ketika pengguna menghapus tanggalnya.
+      if (editId) {
+        payload.tanggal_jatuh_tempo = form.tanggal_jatuh_tempo || "";
+      } else if (form.tanggal_jatuh_tempo) {
         payload.tanggal_jatuh_tempo = form.tanggal_jatuh_tempo;
       }
 
@@ -399,28 +348,35 @@ export default function Transaksi() {
           else newStatusBayar = "belum_bayar";
         }
 
-        await pb.collection("transaksi_sewa").update(editId, {
+        await simpanTransaksi(editId, {
           ...payload,
           status_bayar: newStatusBayar,
         });
 
-        if (oldTrx?.status === "aktif" && oldSawahId !== form.sawah) {
-          await pb
-            .collection("sawah")
-            .update(oldSawahId!, { status: "tersedia" });
-          await pb.collection("sawah").update(form.sawah, { status: "disewa" });
+        if (oldTrx?.status === "aktif" && oldSawahId && oldSawahId !== form.sawah) {
+          await syncSawahStatus(oldSawahId);
+          await syncSawahStatus(form.sawah);
         }
         toast("Transaksi diperbarui!", "success");
       } else {
-        // 4. Buat Record Baru
-        const newTrx = await pb.collection("transaksi_sewa").create({
+        // 4. Buat Record Baru. Status bayar diturunkan dari nominal agar tidak
+        //    tersimpan status "DP" untuk nominal 0 atau "belum bayar" untuk
+        //    nominal penuh.
+        const statusBayarBaru: TransaksiSewa["status_bayar"] =
+          cleanDibayar <= 0
+            ? "belum_bayar"
+            : cleanDibayar >= cleanHarga
+              ? "lunas"
+              : "dp";
+
+        const newTrx = await simpanTransaksi(null, {
           ...payload,
           status: "aktif",
-          status_bayar: form.status_bayar,
+          status_bayar: statusBayarBaru,
           nominal_dibayar: cleanDibayar,
         });
 
-        await pb.collection("sawah").update(form.sawah, { status: "disewa" });
+        await syncSawahStatus(form.sawah);
 
         if (cleanDibayar > 0) {
           await pb.collection("riwayat_bayar").create({
@@ -428,7 +384,7 @@ export default function Transaksi() {
             tanggal: form.tanggal_mulai,
             nominal: cleanDibayar,
             keterangan:
-              form.status_bayar === "lunas"
+              statusBayarBaru === "lunas"
                 ? "Pelunasan Awal"
                 : "Pembayaran DP Awal",
           });
@@ -455,7 +411,7 @@ export default function Transaksi() {
     }
   }
 
-  function handleBatalSewa(trx: Transaksi) {
+  function handleBatalSewa(trx: TransaksiSewa) {
     confirm({
       title: "Batalkan Sewa?",
       message: "Data transaksi akan ditandai sebagai batal.",
@@ -465,20 +421,17 @@ export default function Transaksi() {
           await pb
             .collection("transaksi_sewa")
             .update(trx.id, { status: "batal" });
-          if (trx.expand?.sawah?.id)
-            await pb
-              .collection("sawah")
-              .update(trx.expand.sawah.id, { status: "tersedia" });
+          await syncSawahStatus(trx.expand?.sawah?.id);
           toast("Sewa dibatalkan.", "info");
           loadData();
-        } catch (err) {
+        } catch {
           toast("Gagal membatalkan sewa.", "error");
         }
       },
     });
   }
 
-  function handleSelesai(trx: Transaksi) {
+  function handleSelesai(trx: TransaksiSewa) {
     confirm({
       title: "Selesaikan Sewa?",
       message: "Status sawah kembali Tersedia dan transaksi dikunci.",
@@ -488,19 +441,17 @@ export default function Transaksi() {
             status: "selesai",
             tanggal_panen: getTodayString(),
           });
-          await pb
-            .collection("sawah")
-            .update(trx.expand!.sawah.id, { status: "tersedia" });
+          await syncSawahStatus(trx.expand?.sawah?.id);
           toast("Siklus panen selesai!", "success");
           loadData();
-        } catch (err) {
+        } catch {
           toast("Gagal menyelesaikan transaksi.", "error");
         }
       },
     });
   }
 
-  function openEditModal(trx: Transaksi) {
+  function openEditModal(trx: TransaksiSewa) {
     setForm({
       sawah: trx.expand?.sawah?.id || "",
       penyewa: trx.expand?.penyewa?.id || "",
@@ -509,14 +460,18 @@ export default function Transaksi() {
         ? trx.tanggal_jatuh_tempo.split(" ")[0]
         : "",
       harga_sewa: formatRupiah(trx.harga_sewa),
+      jumlah_musim: String(trx.jumlah_musim || 1),
       status_bayar: trx.status_bayar,
       nominal_dibayar: formatRupiah(trx.nominal_dibayar || 0),
     });
+    // Tampilkan tanda tangan yang sudah tersimpan agar tidak terlihat hilang
+    // saat transaksi diedit.
+    setTtdPenyewa(trx.ttd_penyewa || "");
     setEditId(trx.id);
     setIsModalOpen(true);
   }
 
-  async function openLogModal(trx: Transaksi) {
+  async function openLogModal(trx: TransaksiSewa) {
     setSelectedTrx(trx);
     setIsLogModalOpen(true);
     const now = new Date();
@@ -565,7 +520,7 @@ export default function Transaksi() {
           await pb.collection("log_bulanan").delete(logId);
           toast("Log dihapus.", "info");
           loadLogs(selectedTrx!.id);
-        } catch (err) {
+        } catch {
           toast("Gagal menghapus log.", "error");
         }
       },
@@ -589,12 +544,12 @@ export default function Transaksi() {
       }
       cancelEditLog();
       loadLogs(selectedTrx!.id);
-    } catch (err) {
+    } catch {
       toast("Gagal menyimpan log.", "error");
     }
   }
 
-  async function openPayModal(trx: Transaksi) {
+  async function openPayModal(trx: TransaksiSewa) {
     setPayTrx(trx);
     setIsPayModalOpen(true);
     setPayForm({ tanggal: getTodayString(), nominal: "", keterangan: "" });
@@ -617,7 +572,16 @@ export default function Transaksi() {
     e.preventDefault();
     if (!payTrx) return;
     const nominalBayar = Number(payForm.nominal.replace(/\./g, ""));
-    if (nominalBayar <= 0) return toast("Nominal tidak valid", "error");
+    if (!Number.isFinite(nominalBayar) || nominalBayar <= 0)
+      return toast("Nominal tidak valid", "error");
+
+    const sisaTagihan = payTrx.harga_sewa - (payTrx.nominal_dibayar || 0);
+    if (nominalBayar > sisaTagihan) {
+      return toast(
+        `Nominal melebihi sisa tagihan (Rp ${Math.max(0, sisaTagihan).toLocaleString("id-ID")}).`,
+        "warning",
+      );
+    }
 
     try {
       await pb.collection("riwayat_bayar").create({
@@ -626,9 +590,18 @@ export default function Transaksi() {
         nominal: nominalBayar,
         keterangan: payForm.keterangan || "Pembayaran Termin",
       });
-      const totalDibayarBaru = (payTrx.nominal_dibayar || 0) + nominalBayar;
-      let statusBaru = "dp";
-      if (totalDibayarBaru >= payTrx.harga_sewa) statusBaru = "lunas";
+
+      // Hitung ulang dari riwayat sebagai sumber kebenaran, bukan dari nilai
+      // tersimpan yang bisa sudah tidak sinkron.
+      const semuaBayar = await pb
+        .collection("riwayat_bayar")
+        .getFullList<RiwayatBayar>({ filter: `transaksi="${payTrx.id}"` });
+      const totalDibayarBaru = semuaBayar.reduce(
+        (sum, item) => sum + (item.nominal || 0),
+        0,
+      );
+      const statusBaru: TransaksiSewa["status_bayar"] =
+        totalDibayarBaru >= payTrx.harga_sewa ? "lunas" : "dp";
 
       await pb.collection("transaksi_sewa").update(payTrx.id, {
         nominal_dibayar: totalDibayarBaru,
@@ -643,7 +616,7 @@ export default function Transaksi() {
       });
       loadRiwayatBayar(payTrx.id);
       loadData();
-    } catch (err) {
+    } catch {
       toast("Gagal mencatat pembayaran", "error");
     }
   }
@@ -655,10 +628,24 @@ export default function Transaksi() {
       onConfirm: async () => {
         try {
           await pb.collection("riwayat_bayar").delete(pay.id);
-          const totalDibayarBaru = (payTrx!.nominal_dibayar || 0) - pay.nominal;
-          let statusBaru = "dp";
-          if (totalDibayarBaru <= 0) statusBaru = "belum_bayar";
-          else if (totalDibayarBaru >= payTrx!.harga_sewa) statusBaru = "lunas";
+
+          // Hitung ulang sisa setoran dari riwayat yang masih ada agar total
+          // tidak melenceng ketika sebelumnya pernah ada selisih.
+          const sisaRiwayat = await pb
+            .collection("riwayat_bayar")
+            .getFullList<RiwayatBayar>({
+              filter: `transaksi="${payTrx!.id}"`,
+            });
+          const totalDibayarBaru = sisaRiwayat.reduce(
+            (sum, item) => sum + (item.nominal || 0),
+            0,
+          );
+          const statusBaru: TransaksiSewa["status_bayar"] =
+            totalDibayarBaru <= 0
+              ? "belum_bayar"
+              : totalDibayarBaru >= payTrx!.harga_sewa
+                ? "lunas"
+                : "dp";
 
           await pb.collection("transaksi_sewa").update(payTrx!.id, {
             nominal_dibayar: totalDibayarBaru,
@@ -672,7 +659,7 @@ export default function Transaksi() {
           });
           loadRiwayatBayar(payTrx!.id);
           loadData();
-        } catch (err) {
+        } catch {
           toast("Gagal menghapus pembayaran", "error");
         }
       },
@@ -877,6 +864,12 @@ export default function Transaksi() {
                         )}
                       </span>
                     </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Jumlah Musim:</span>
+                      <span className="font-semibold text-slate-800">
+                        {trx.jumlah_musim || 1} Musim
+                      </span>
+                    </div>
                     <div className="flex justify-between pt-1 border-t border-slate-100">
                       <span className="text-slate-500">Harga Sewa:</span>
                       <span className="font-bold text-slate-900">
@@ -925,7 +918,7 @@ export default function Transaksi() {
                     </button>
                     {trx.status_bayar !== "lunas" && trx.status === "aktif" && (
                       <button
-                        onClick={() => sendWATagihan(trx)}
+                        onClick={() => handleSendWATagihan(trx)}
                         className="p-2 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-medium border border-emerald-100 flex items-center gap-1 cursor-pointer"
                         title="Tagih WA"
                       >
@@ -1079,6 +1072,20 @@ export default function Transaksi() {
                           Rp {trx.harga_sewa.toLocaleString("id-ID")}
                         </div>
 
+                        <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                          {trx.jumlah_musim || 1} Musim
+                          {(trx.jumlah_musim || 1) > 1 && (
+                            <>
+                              {" "}
+                              × Rp{" "}
+                              {Math.round(
+                                trx.harga_sewa / (trx.jumlah_musim || 1),
+                              ).toLocaleString("id-ID")}
+                              /musim
+                            </>
+                          )}
+                        </div>
+
                         <div className="flex flex-col gap-1.5 mt-1.5">
                           <span
                             className={`w-fit px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border shadow-xs ${
@@ -1166,7 +1173,7 @@ export default function Transaksi() {
                           {trx.status_bayar !== "lunas" &&
                             trx.status === "aktif" && (
                               <button
-                                onClick={() => sendWATagihan(trx)}
+                                onClick={() => handleSendWATagihan(trx)}
                                 className="p-2 text-emerald-600 bg-white border border-emerald-200 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer shadow-xs"
                                 title="Tagih via WhatsApp"
                               >

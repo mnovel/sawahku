@@ -1,19 +1,8 @@
 import { useEffect, useState } from "react";
 import { pb } from "../lib/pb";
+import type { SettingApp } from "../types";
 
-export interface SettingApp {
-  id?: string;
-  nama_aplikasi?: string;
-  deskripsi?: string;
-  deskripsi_singkat?: string;
-  keyword?: string;
-  nama_pengelola?: string;
-  domain?: string;
-  logo?: string;
-  alamat?: string;
-  nomor_wa?: string;
-  catatan_nota?: string;
-}
+export type { SettingApp };
 
 export default function useSetting() {
   const [setting, setSetting] = useState<SettingApp | null>(null);

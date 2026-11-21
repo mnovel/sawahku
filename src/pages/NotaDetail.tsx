@@ -30,8 +30,10 @@ export default function NotaDetail() {
             sort: "tanggal",
           });
           setPayList(rb);
-        } catch {}
-      } catch (err) {
+        } catch (err) {
+          console.error("Gagal memuat riwayat pembayaran nota:", err);
+        }
+      } catch {
         setError(true);
       } finally {
         setLoading(false);
@@ -43,9 +45,10 @@ export default function NotaDetail() {
   const appName = setting?.nama_aplikasi || "Sawahku";
   const sawahNama = trx?.expand?.sawah?.nama || "";
   const penyewaNama = trx?.expand?.penyewa?.nama || "";
-  const pageTitle = sawahNama && penyewaNama 
-    ? `Nota Sewa - ${sawahNama} (${penyewaNama}) - ${appName}` 
-    : `Nota Digital Resmi - ${appName}`;
+  const pageTitle =
+    sawahNama && penyewaNama
+      ? `Nota Sewa - ${sawahNama} (${penyewaNama}) - ${appName}`
+      : `Nota Digital Resmi - ${appName}`;
 
   if (loading) {
     return (
@@ -80,7 +83,10 @@ export default function NotaDetail() {
       {/* PENGATURAN META / HELMET */}
       <Helmet>
         <title>{pageTitle}</title>
-        <meta name="description" content={`Nota digital resmi transaksi sewa lahan sawah untuk ${penyewaNama}.`} />
+        <meta
+          name="description"
+          content={`Nota digital resmi transaksi sewa lahan sawah untuk ${penyewaNama}.`}
+        />
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
 

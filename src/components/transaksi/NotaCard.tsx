@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   CheckCircle2,
   AlertCircle,
@@ -33,6 +33,7 @@ interface TransaksiNota {
   tanggal_panen?: string;
   tanggal_jatuh_tempo?: string;
   harga_sewa: number;
+  jumlah_musim?: number;
   status: string;
   status_bayar: string;
   nominal_dibayar: number;
@@ -145,6 +146,12 @@ export default function NotaCard({ trx, payList = [] }: Props) {
     fetchSertifikat();
   }, [trx]);
 
+  const tanggalCetakStr = useMemo(
+    () => formatDate(new Date().toISOString()),
+    [],
+  );
+  const waktuCetakStr = useMemo(() => new Date().toLocaleString("id-ID"), []);
+
   const totalSewa = trx.harga_sewa || 0;
   const totalDibayar = trx.nominal_dibayar || 0;
   const sisaTagihan = Math.max(0, totalSewa - totalDibayar);
@@ -225,9 +232,7 @@ export default function NotaCard({ trx, payList = [] }: Props) {
               <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">
                 Tanggal Cetak
               </p>
-              <p className="font-bold text-slate-800">
-                {formatDate(new Date().toISOString())}
-              </p>
+              <p className="font-bold text-slate-800">{tanggalCetakStr}</p>
             </div>
             <div>
               <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">
@@ -377,7 +382,7 @@ export default function NotaCard({ trx, payList = [] }: Props) {
           <FileText size={16} className="text-blue-600" /> Periode & Ketentuan
           Sewa
         </h3>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
             <p className="text-[10px] font-bold text-slate-500 uppercase">
               Mulai Sewa
@@ -388,10 +393,18 @@ export default function NotaCard({ trx, payList = [] }: Props) {
           </div>
           <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
             <p className="text-[10px] font-bold text-slate-500 uppercase">
+              Jumlah Musim
+            </p>
+            <p className="font-bold text-slate-800 mt-1">
+              {trx.jumlah_musim || 1} Musim
+            </p>
+          </div>
+          <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+            <p className="text-[10px] font-bold text-slate-500 uppercase">
               Selesai / Panen
             </p>
             <p className="font-bold text-slate-800 mt-1">
-              {trx.tanggal_panen ? formatDate(trx.tanggal_panen) : "1 Musim"}
+              {trx.tanggal_panen ? formatDate(trx.tanggal_panen) : "-"}
             </p>
           </div>
           <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
@@ -453,6 +466,23 @@ export default function NotaCard({ trx, payList = [] }: Props) {
 
           <div className="w-full md:w-[320px]">
             <div className="bg-slate-50 p-3 rounded-xl border border-slate-300 space-y-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-600 font-medium">
+                  Jumlah Musim
+                </span>
+                <span className="font-bold text-slate-800">
+                  {trx.jumlah_musim || 1} Musim
+                  {(trx.jumlah_musim || 1) > 1 && (
+                    <>
+                      {" "}
+                      × Rp{" "}
+                      {Math.round(
+                        trx.harga_sewa / (trx.jumlah_musim || 1),
+                      ).toLocaleString("id-ID")}
+                    </>
+                  )}
+                </span>
+              </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-slate-600 font-medium">
                   Total Harga Sewa
@@ -537,8 +567,7 @@ export default function NotaCard({ trx, payList = [] }: Props) {
           sah selama periode berlaku.
         </p>
         <p className="mt-2 font-medium">
-          {setting?.catatan_nota ||
-            `Dicetak pada ${new Date().toLocaleString("id-ID")}`}
+          {setting?.catatan_nota || `Dicetak pada ${waktuCetakStr}`}
         </p>
       </div>
     </div>

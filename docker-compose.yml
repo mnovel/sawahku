@@ -1,0 +1,57 @@
+# SawahKu — frontend (dist hasil build lokal) + PocketBase dalam satu compose.
+#
+# Build frontend tetap di lokal (butuh Node): `npm run build`
+# Compose hanya menjalankan hasil build (./dist) dan PocketBase.
+#
+#   docker compose up -d          # jalankan
+#   docker compose ps             # status
+#   docker compose logs -f        # log
+#   docker compose down           # hentikan
+#
+# Semua port hanya di-bind ke 127.0.0.1; nginx host
+# (sawahku.novelwardah.com) yang meneruskan request ke web:8081.
+
+name: sawahku
+
+services:
+  pocketbase:
+    image: ghcr.io/muchobien/pocketbase:0.40.5
+    container_name: sawahku-pocketbase
+    restart: unless-stopped
+    # UID/GID pbuser di host (id -u pbuser / id -g pbuser) agar file di
+    # pb_data tetap dimiliki user yang sama seperti instalasi systemd lama.
+    user: "999:987"
+    command:
+      - serve
+      - --http=0.0.0.0:8090
+      - --dir=/pb_data
+      - --migrationsDir=/pb_migrations
+    volumes:
+      - ./pb_data:/pb_data
+      - ./pb_migrations:/pb_migrations:ro
+    ports:
+      - "127.0.0.1:8090:8090"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8090/api/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  web:
+    image: nginx:alpine
+    container_name: sawahku-web
+    restart: unless-stopped
+    depends_on:
+      - pocketbase
+    volumes:
+      - ./dist:/usr/share/nginx/html:ro
+      - ./deploy/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "127.0.0.1:8081:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s

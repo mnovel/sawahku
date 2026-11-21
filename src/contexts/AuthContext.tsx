@@ -1,10 +1,6 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useEffect, useState } from "react";
 import { pb } from "../lib/pb";
-
-interface User {
-  id: string;
-  email: string;
-}
+import type { User } from "../types";
 
 interface AuthContextType {
   user: User | null;
@@ -12,7 +8,7 @@ interface AuthContextType {
   logout: () => void;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
+export const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(
@@ -36,10 +32,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth harus dipakai di dalam AuthProvider");
-  return context;
-};
+export { useAuth } from "../hooks/useAuth";

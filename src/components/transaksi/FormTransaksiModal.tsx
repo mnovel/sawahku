@@ -43,6 +43,10 @@ export default function FormTransaksiModal({
 }: Props) {
   if (!isOpen) return null;
 
+  const jumlahMusim = Math.max(1, Math.floor(Number(form.jumlah_musim) || 1));
+  const hargaPerMusim =
+    availableSawah.find((s) => s.id === form.sawah)?.harga_sewa || 0;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
@@ -76,7 +80,7 @@ export default function FormTransaksiModal({
                   (s) => s.id === e.target.value,
                 );
                 const defaultHarga = selected
-                  ? formatRupiah(selected.harga_sewa)
+                  ? formatRupiah(selected.harga_sewa * jumlahMusim)
                   : "";
                 setForm({
                   ...form,
@@ -149,28 +153,74 @@ export default function FormTransaksiModal({
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Harga Sewa (Total)
-            </label>
-            <input
-              required
-              type="text"
-              inputMode="numeric"
-              value={form.harga_sewa}
-              onChange={(e) => {
-                const newHarga = formatRupiah(e.target.value);
-                setForm({
-                  ...form,
-                  harga_sewa: newHarga,
-                  nominal_dibayar:
-                    form.status_bayar === "lunas"
-                      ? newHarga
-                      : form.nominal_dibayar,
-                });
-              }}
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Jumlah Musim
+              </label>
+              <input
+                required
+                type="number"
+                min={1}
+                step={1}
+                value={form.jumlah_musim}
+                onChange={(e) => {
+                  const musim = Math.max(
+                    1,
+                    Math.floor(Number(e.target.value) || 1),
+                  );
+                  const totalBaru =
+                    hargaPerMusim > 0
+                      ? formatRupiah(hargaPerMusim * musim)
+                      : form.harga_sewa;
+                  setForm({
+                    ...form,
+                    jumlah_musim: String(musim),
+                    harga_sewa: totalBaru,
+                    nominal_dibayar:
+                      form.status_bayar === "lunas"
+                        ? totalBaru
+                        : form.nominal_dibayar,
+                  });
+                }}
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
+              />
+              <p className="text-[11px] text-slate-500 mt-1">
+                {hargaPerMusim > 0
+                  ? `Harga per musim: Rp ${hargaPerMusim.toLocaleString("id-ID")}`
+                  : "Pilih sawah untuk melihat harga per musim."}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Harga Sewa (Total)
+              </label>
+              <input
+                required
+                type="text"
+                inputMode="numeric"
+                value={form.harga_sewa}
+                onChange={(e) => {
+                  const newHarga = formatRupiah(e.target.value);
+                  setForm({
+                    ...form,
+                    harga_sewa: newHarga,
+                    nominal_dibayar:
+                      form.status_bayar === "lunas"
+                        ? newHarga
+                        : form.nominal_dibayar,
+                  });
+                }}
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
+              />
+              {jumlahMusim > 1 && (
+                <p className="text-[11px] text-slate-500 mt-1">
+                  {jumlahMusim} musim — total otomatis dari harga per musim,
+                  boleh disesuaikan.
+                </p>
+              )}
+            </div>
           </div>
 
           {!editId ? (
